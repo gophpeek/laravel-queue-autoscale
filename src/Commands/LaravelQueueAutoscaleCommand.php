@@ -1,12 +1,12 @@
 <?php
 
-namespace VendorName\Skeleton\Commands;
+namespace PHPeek\LaravelQueueAutoscale\Commands;
 
 use Illuminate\Console\Command;
 
-class SkeletonCommand extends Command
+class LaravelQueueAutoscaleCommand extends Command
 {
-    public $signature = 'skeleton';
+    public $signature = 'laravel-queue-autoscale';
 
     public $description = 'My command';
 
