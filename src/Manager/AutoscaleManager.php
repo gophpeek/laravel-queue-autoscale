@@ -27,6 +27,9 @@ final class AutoscaleManager
 
     private int $interval = 5;
 
+    /**
+     * @var array<string, \Illuminate\Support\Carbon>
+     */
     private array $lastScaleTime = [];
 
     private ?OutputInterface $output = null;
@@ -133,6 +136,9 @@ final class AutoscaleManager
 
     /**
      * Map field names from getAllQueuesWithMetrics() to QueueMetricsData::fromArray() format
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
      */
     private function mapMetricsFields(array $data): array
     {

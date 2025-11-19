@@ -21,6 +21,9 @@ final class WorkerPool
         $this->workers->push($worker);
     }
 
+    /**
+     * @param  Collection<int, WorkerProcess>  $workers
+     */
     public function addMany(Collection $workers): void
     {
         $this->workers = $this->workers->merge($workers);

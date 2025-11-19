@@ -14,6 +14,9 @@ use PHPeek\LaravelQueueMetrics\DataTransferObjects\QueueMetricsData;
 
 final class PredictiveStrategy implements ScalingStrategyContract
 {
+    /**
+     * @var array<string, float|int>
+     */
     private array $lastCalculation = [];
 
     public function __construct(

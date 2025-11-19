@@ -33,6 +33,8 @@ final class ProfilePresets
      * Trade-offs: Highest cost, excellent reliability, excellent latency
      *
      * Recommended policies: NoScaleDownPolicy, BreachNotificationPolicy
+     *
+     * @return array<string, int|float>
      */
     public static function critical(): array
     {
@@ -62,6 +64,8 @@ final class ProfilePresets
      * Trade-offs: Moderate cost, very good reliability, good latency
      *
      * Recommended policies: ConservativeScaleDownPolicy, BreachNotificationPolicy
+     *
+     * @return array<string, int|float>
      */
     public static function highVolume(): array
     {
@@ -91,6 +95,8 @@ final class ProfilePresets
      * Trade-offs: Good cost/performance balance, good reliability, good latency
      *
      * Recommended policies: ConservativeScaleDownPolicy
+     *
+     * @return array<string, int|float>
      */
     public static function balanced(): array
     {
@@ -120,6 +126,8 @@ final class ProfilePresets
      * Trade-offs: Low baseline cost, variable latency, excellent spike handling
      *
      * Recommended policies: AggressiveScaleDownPolicy, BreachNotificationPolicy
+     *
+     * @return array<string, int|float>
      */
     public static function bursty(): array
     {
@@ -149,6 +157,8 @@ final class ProfilePresets
      * Trade-offs: Lowest cost, acceptable delays, eventually consistent
      *
      * Recommended policies: AggressiveScaleDownPolicy
+     *
+     * @return array<string, int|float>
      */
     public static function background(): array
     {
@@ -165,7 +175,7 @@ final class ProfilePresets
     /**
      * Get all available profiles with their metadata
      *
-     * @return array<string, array{config: array, description: string, use_cases: string[], cost: string, policies: string[]}>
+     * @return array<string, array{config: array<string, int|float>, description: string, use_cases: string[], cost: string, policies: string[]}>
      */
     public static function all(): array
     {
