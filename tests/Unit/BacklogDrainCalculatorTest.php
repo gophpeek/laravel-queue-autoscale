@@ -16,6 +16,23 @@ it('returns zero for empty backlog', function () {
     ))->toBe(0.0);
 });
 
+it('uses fallback logic when oldest job age is unavailable but backlog exists', function () {
+    $calculator = new BacklogDrainCalculator;
+
+    // Fallback scenario: oldest_job_age = 0 (unavailable) but backlog = 50
+    // SLA target: 30s, avg job time: 1s
+    // Conservative estimate: process within full SLA window
+    // Jobs per worker: max(30s / 1s, 1.0) = 30 jobs
+    // Workers needed: 50 / 30 = 1.666...
+    expect($calculator->calculateRequiredWorkers(
+        backlog: 50,
+        oldestJobAge: 0, // Age unavailable (common with some queue drivers)
+        slaTarget: 30,
+        avgJobTime: 1.0,
+        breachThreshold: 0.8,
+    ))->toBe(50.0 / 30.0);
+});
+
 it('returns zero for zero average job time', function () {
     $calculator = new BacklogDrainCalculator;
 

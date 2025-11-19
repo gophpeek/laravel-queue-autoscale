@@ -29,6 +29,15 @@ final readonly class BacklogDrainCalculator
             return 0.0;
         }
 
+        // Fallback: If oldest job age is unavailable (0) but we have backlog,
+        // assume we should start processing. Not all queue drivers can provide age data.
+        if ($oldestJobAge === 0 && $backlog > 0) {
+            // Use conservative estimate: process backlog within full SLA window
+            $jobsPerWorker = max($slaTarget / $avgJobTime, 1.0);
+
+            return $backlog / $jobsPerWorker;
+        }
+
         // Time until SLA breach
         $timeUntilBreach = $slaTarget - $oldestJobAge;
 
