@@ -208,31 +208,36 @@ final class AutoscaleManager
             $this->verbose("     Predicted pickup time: {$decision->predictedPickupTime}s (SLA: {$decision->slaTarget}s)", 'info');
         }
 
-        // 7. Execute policies (before)
-        $this->policies->beforeScaling($decision);
+        // 7. Execute policies (before) - policies can modify the decision
+        $finalDecision = $this->policies->beforeScaling($decision);
 
-        // 8. Execute scaling action
-        if ($decision->shouldScaleUp()) {
-            $this->scaleUp($decision);
-        } elseif ($decision->shouldScaleDown()) {
-            $this->scaleDown($decision);
+        // Log if decision was modified by policies
+        if ($finalDecision->targetWorkers !== $decision->targetWorkers) {
+            $this->verbose("  🔧 Policy modified decision: {$decision->targetWorkers} → {$finalDecision->targetWorkers} workers", 'info');
+        }
+
+        // 8. Execute scaling action using potentially modified decision
+        if ($finalDecision->shouldScaleUp()) {
+            $this->scaleUp($finalDecision);
+        } elseif ($finalDecision->shouldScaleDown()) {
+            $this->scaleDown($finalDecision);
         } else {
             $this->verbose('  ✓ No scaling action needed', 'debug');
         }
 
         // 9. Execute policies (after)
-        $this->policies->afterScaling($decision);
+        $this->policies->afterScaling($finalDecision);
 
-        // 10. Broadcast events
-        event(new ScalingDecisionMade($decision));
+        // 10. Broadcast events using final decision
+        event(new ScalingDecisionMade($finalDecision));
 
-        if ($decision->isSlaBreachRisk()) {
+        if ($finalDecision->isSlaBreachRisk()) {
             $this->verbose('  ⚠️  SLA BREACH RISK DETECTED!', 'warn');
-            event(new SlaBreachPredicted($decision));
+            event(new SlaBreachPredicted($finalDecision));
         }
 
         // 11. Update last scale time
-        if (! $decision->shouldHold()) {
+        if (! $finalDecision->shouldHold()) {
             $this->lastScaleTime[$key] = now();
         }
     }

@@ -19,11 +19,26 @@ final readonly class PolicyExecutor
         $this->policies = $this->loadPolicies();
     }
 
-    public function beforeScaling(ScalingDecision $decision): void
+    /**
+     * Execute all policies before scaling
+     *
+     * Policies can modify the scaling decision by returning a new ScalingDecision.
+     * Each policy receives the potentially modified decision from previous policies.
+     *
+     * @return ScalingDecision The final decision after all policies have been applied
+     */
+    public function beforeScaling(ScalingDecision $decision): ScalingDecision
     {
+        $currentDecision = $decision;
+
         foreach ($this->policies as $policy) {
             try {
-                $policy->beforeScaling($decision);
+                $modifiedDecision = $policy->beforeScaling($currentDecision);
+
+                // If policy returns a modified decision, use it for subsequent policies
+                if ($modifiedDecision !== null) {
+                    $currentDecision = $modifiedDecision;
+                }
             } catch (\Throwable $e) {
                 Log::channel(AutoscaleConfiguration::logChannel())->error(
                     'Policy beforeScaling failed',
@@ -34,6 +49,8 @@ final readonly class PolicyExecutor
                 );
             }
         }
+
+        return $currentDecision;
     }
 
     public function afterScaling(ScalingDecision $decision): void
