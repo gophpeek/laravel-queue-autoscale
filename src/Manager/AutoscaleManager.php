@@ -164,19 +164,27 @@ final class AutoscaleManager
         // 1. Get configuration
         $config = QueueConfiguration::fromConfig($connection, $queue);
 
-        // 2. Check cooldown
+        // 2. Check for SLA breach - bypass cooldown if breaching
+        $isBreaching = $metrics->oldestJobAge > 0 && $metrics->oldestJobAge >= $config->maxPickupTimeSeconds;
+
+        if ($isBreaching) {
+            $this->verbose("  🚨 SLA BREACH: oldest_age={$metrics->oldestJobAge}s >= SLA={$config->maxPickupTimeSeconds}s - BYPASSING COOLDOWN", 'error');
+        }
+
+        // 3. Check cooldown (unless breaching SLA)
         $key = "{$connection}:{$queue}";
-        if ($this->inCooldown($key, $config->scaleCooldownSeconds)) {
-            $this->verbose("  ⏸️  In cooldown period, skipping", 'debug');
+        if (! $isBreaching && $this->inCooldown($key, $config->scaleCooldownSeconds)) {
+            $remaining = $this->getCooldownRemaining($key, $config->scaleCooldownSeconds);
+            $this->verbose("  ⏸️  In cooldown period ({$remaining}s remaining)", 'debug');
 
             return;
         }
 
-        // 3. Count current workers
+        // 4. Count current workers
         $currentWorkers = $this->pool->count($connection, $queue);
         $this->verbose("  Current workers: {$currentWorkers}", 'debug');
 
-        // 4. Calculate scaling decision
+        // 5. Calculate scaling decision
         $decision = $this->engine->evaluate($metrics, $config, $currentWorkers);
 
         $this->verbose("  📊 Decision: {$currentWorkers} → {$decision->targetWorkers} workers", 'info');
@@ -186,10 +194,10 @@ final class AutoscaleManager
             $this->verbose("     Predicted pickup time: {$decision->predictedPickupTime}s (SLA: {$decision->slaTarget}s)", 'info');
         }
 
-        // 5. Execute policies (before)
+        // 6. Execute policies (before)
         $this->policies->beforeScaling($decision);
 
-        // 6. Execute scaling action
+        // 7. Execute scaling action
         if ($decision->shouldScaleUp()) {
             $this->scaleUp($decision);
         } elseif ($decision->shouldScaleDown()) {
@@ -198,10 +206,10 @@ final class AutoscaleManager
             $this->verbose("  ✓ No scaling action needed", 'debug');
         }
 
-        // 7. Execute policies (after)
+        // 8. Execute policies (after)
         $this->policies->afterScaling($decision);
 
-        // 8. Broadcast events
+        // 9. Broadcast events
         event(new ScalingDecisionMade($decision));
 
         if ($decision->isSlaBreachRisk()) {
@@ -209,7 +217,7 @@ final class AutoscaleManager
             event(new SlaBreachPredicted($decision));
         }
 
-        // 9. Update last scale time
+        // 10. Update last scale time
         if (! $decision->shouldHold()) {
             $this->lastScaleTime[$key] = now();
         }
@@ -343,5 +351,18 @@ final class AutoscaleManager
         $lastScale = $this->lastScaleTime[$key];
 
         return $lastScale->diffInSeconds(now()) < $cooldownSeconds;
+    }
+
+    private function getCooldownRemaining(string $key, int $cooldownSeconds): int
+    {
+        if (! isset($this->lastScaleTime[$key])) {
+            return 0;
+        }
+
+        /** @var Carbon $lastScale */
+        $lastScale = $this->lastScaleTime[$key];
+        $elapsed = $lastScale->diffInSeconds(now());
+
+        return max(0, $cooldownSeconds - $elapsed);
     }
 }
