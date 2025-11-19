@@ -5,17 +5,18 @@ declare(strict_types=1);
 namespace PHPeek\LaravelQueueAutoscale\Contracts;
 
 use PHPeek\LaravelQueueAutoscale\Configuration\QueueConfiguration;
+use PHPeek\LaravelQueueMetrics\DataTransferObjects\QueueMetricsData;
 
 interface ScalingStrategyContract
 {
     /**
      * Calculate target number of workers for a queue
      *
-     * @param  object  $metrics  QueueMetricsData from laravel-queue-metrics
+     * @param  QueueMetricsData  $metrics  Queue metrics from laravel-queue-metrics
      * @param  QueueConfiguration  $config  Queue SLA configuration
      * @return int Target worker count
      */
-    public function calculateTargetWorkers(object $metrics, QueueConfiguration $config): int;
+    public function calculateTargetWorkers(QueueMetricsData $metrics, QueueConfiguration $config): int;
 
     /**
      * Get human-readable reason for last scaling decision

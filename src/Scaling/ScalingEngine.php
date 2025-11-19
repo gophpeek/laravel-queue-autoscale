@@ -7,6 +7,7 @@ namespace PHPeek\LaravelQueueAutoscale\Scaling;
 use PHPeek\LaravelQueueAutoscale\Configuration\QueueConfiguration;
 use PHPeek\LaravelQueueAutoscale\Contracts\ScalingStrategyContract;
 use PHPeek\LaravelQueueAutoscale\Scaling\Calculators\CapacityCalculator;
+use PHPeek\LaravelQueueMetrics\DataTransferObjects\QueueMetricsData;
 
 final readonly class ScalingEngine
 {
@@ -18,13 +19,13 @@ final readonly class ScalingEngine
     /**
      * Evaluate scaling decision for a queue
      *
-     * @param  object  $metrics  QueueMetricsData from laravel-queue-metrics
+     * @param  QueueMetricsData  $metrics  Queue metrics from laravel-queue-metrics
      * @param  QueueConfiguration  $config  Queue SLA configuration
      * @param  int  $currentWorkers  Current worker count for this queue
      * @return ScalingDecision Scaling decision with target workers
      */
     public function evaluate(
-        object $metrics,
+        QueueMetricsData $metrics,
         QueueConfiguration $config,
         int $currentWorkers,
     ): ScalingDecision {

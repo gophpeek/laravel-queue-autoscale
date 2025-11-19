@@ -17,6 +17,7 @@ use PHPeek\LaravelQueueAutoscale\Scaling\ScalingEngine;
 use PHPeek\LaravelQueueAutoscale\Workers\WorkerPool;
 use PHPeek\LaravelQueueAutoscale\Workers\WorkerSpawner;
 use PHPeek\LaravelQueueAutoscale\Workers\WorkerTerminator;
+use PHPeek\LaravelQueueMetrics\DataTransferObjects\QueueMetricsData;
 use PHPeek\LaravelQueueMetrics\Facades\QueueMetrics;
 
 final class AutoscaleManager
@@ -94,7 +95,7 @@ final class AutoscaleManager
         }
     }
 
-    private function evaluateQueue(string $connection, string $queue, object $metrics): void
+    private function evaluateQueue(string $connection, string $queue, QueueMetricsData $metrics): void
     {
         // 1. Get configuration
         $config = QueueConfiguration::fromConfig($connection, $queue);

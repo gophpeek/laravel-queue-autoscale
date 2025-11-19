@@ -10,6 +10,7 @@ use PHPeek\LaravelQueueAutoscale\Contracts\ScalingStrategyContract;
 use PHPeek\LaravelQueueAutoscale\Scaling\Calculators\BacklogDrainCalculator;
 use PHPeek\LaravelQueueAutoscale\Scaling\Calculators\LittlesLawCalculator;
 use PHPeek\LaravelQueueAutoscale\Scaling\Calculators\TrendPredictor;
+use PHPeek\LaravelQueueMetrics\DataTransferObjects\QueueMetricsData;
 
 final class PredictiveStrategy implements ScalingStrategyContract
 {
@@ -21,13 +22,14 @@ final class PredictiveStrategy implements ScalingStrategyContract
         private readonly BacklogDrainCalculator $backlog,
     ) {}
 
-    public function calculateTargetWorkers(object $metrics, QueueConfiguration $config): int
+    public function calculateTargetWorkers(QueueMetricsData $metrics, QueueConfiguration $config): int
     {
-        // Extract metrics from QueueMetricsData object
-        $processingRate = $metrics->processingRate ?? 0.0;
-        $backlogSize = $metrics->depth->pending ?? 0;
-        $oldestJobAge = $metrics->depth->oldestJobAgeSeconds ?? 0;
-        $activeWorkers = $metrics->activeWorkerCount ?? 0;
+        // Convert throughput_per_minute to jobs/second (processing rate)
+        $processingRate = $metrics->throughputPerMinute / 60.0;
+
+        $backlogSize = $metrics->pending;
+        $oldestJobAge = $metrics->oldestJobAge;
+        $activeWorkers = $metrics->activeWorkers;
 
         // Estimate average job processing time
         $avgJobTime = $this->estimateAvgJobTime($processingRate, $activeWorkers);
@@ -36,10 +38,11 @@ final class PredictiveStrategy implements ScalingStrategyContract
         $steadyStateWorkers = $this->littles->calculate($processingRate, $avgJobTime);
 
         // 2. TREND-BASED: Predict future arrival rate
-        $trend = $metrics->trend ?? null;
+        // Note: QueueMetricsData currently doesn't provide trend data
+        // So we use null which will cause TrendPredictor to return current rate
         $predictedRate = $this->trends->predictArrivalRate(
             $processingRate,
-            $trend,
+            null, // TODO: Add trend support when metrics package provides it
             AutoscaleConfiguration::forecastHorizonSeconds(),
         );
         $predictiveWorkers = $this->littles->calculate($predictedRate, $avgJobTime);
