@@ -388,6 +388,6 @@ final class AutoscaleManager
         $lastScale = $this->lastScaleTime[$key];
         $elapsed = $lastScale->diffInSeconds(now());
 
-        return max(0, $cooldownSeconds - $elapsed);
+        return (int) max(0, $cooldownSeconds - $elapsed);
     }
 }
