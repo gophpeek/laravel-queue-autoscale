@@ -28,15 +28,12 @@ beforeEach(function () {
         scaleCooldownSeconds: 60,
     );
 
-    $this->metrics = (object) [
-        'processingRate' => 5.0,
-        'activeWorkerCount' => 10,
-        'depth' => (object) [
-            'pending' => 0,
-            'oldestJobAgeSeconds' => 0,
-        ],
-        'trend' => (object) ['direction' => 'stable'],
-    ];
+    $this->metrics = createMetrics([
+        'throughput_per_minute' => 300.0, // 5.0 jobs/sec * 60
+        'active_workers' => 10,
+        'pending' => 0,
+        'oldest_job_age' => 0,
+    ]);
 });
 
 it('evaluates scaling decision using strategy', function () {
@@ -51,15 +48,12 @@ it('evaluates scaling decision using strategy', function () {
 
 it('enforces minimum workers constraint', function () {
     // Create metrics that would result in 0 workers
-    $emptyMetrics = (object) [
-        'processingRate' => 0.0,
-        'activeWorkerCount' => 0,
-        'depth' => (object) [
-            'pending' => 0,
-            'oldestJobAgeSeconds' => 0,
-        ],
-        'trend' => null,
-    ];
+    $emptyMetrics = createMetrics([
+        'throughput_per_minute' => 0.0,
+        'active_workers' => 0,
+        'pending' => 0,
+        'oldest_job_age' => 0,
+    ]);
 
     $decision = $this->engine->evaluate($emptyMetrics, $this->config, 0);
 
@@ -69,18 +63,12 @@ it('enforces minimum workers constraint', function () {
 
 it('enforces maximum workers constraint', function () {
     // Create metrics that would result in very high worker count
-    $highLoadMetrics = (object) [
-        'processingRate' => 100.0,
-        'activeWorkerCount' => 200,
-        'depth' => (object) [
-            'pending' => 1000,
-            'oldestJobAgeSeconds' => 28, // near SLA breach
-        ],
-        'trend' => (object) [
-            'direction' => 'up',
-            'forecast' => 150.0,
-        ],
-    ];
+    $highLoadMetrics = createMetrics([
+        'throughput_per_minute' => 6000.0, // 100.0 jobs/sec * 60
+        'active_workers' => 200,
+        'pending' => 1000,
+        'oldest_job_age' => 28, // near SLA breach
+    ]);
 
     $decision = $this->engine->evaluate($highLoadMetrics, $this->config, 5);
 
@@ -99,15 +87,12 @@ it('applies capacity constraints from system resources', function () {
         scaleCooldownSeconds: 60,
     );
 
-    $highLoadMetrics = (object) [
-        'processingRate' => 100.0,
-        'activeWorkerCount' => 200,
-        'depth' => (object) [
-            'pending' => 1000,
-            'oldestJobAgeSeconds' => 0,
-        ],
-        'trend' => (object) ['direction' => 'stable'],
-    ];
+    $highLoadMetrics = createMetrics([
+        'throughput_per_minute' => 6000.0, // 100.0 jobs/sec * 60
+        'active_workers' => 200,
+        'pending' => 1000,
+        'oldest_job_age' => 0,
+    ]);
 
     $decision = $this->engine->evaluate($highLoadMetrics, $highConfig, 5);
 
@@ -123,15 +108,12 @@ it('includes reason from strategy in decision', function () {
 });
 
 it('includes predicted pickup time from strategy in decision', function () {
-    $metricsWithBacklog = (object) [
-        'processingRate' => 10.0,
-        'activeWorkerCount' => 20,
-        'depth' => (object) [
-            'pending' => 50,
-            'oldestJobAgeSeconds' => 5,
-        ],
-        'trend' => (object) ['direction' => 'stable'],
-    ];
+    $metricsWithBacklog = createMetrics([
+        'throughput_per_minute' => 600.0, // 10.0 jobs/sec * 60
+        'active_workers' => 20,
+        'pending' => 50,
+        'oldest_job_age' => 5,
+    ]);
 
     $decision = $this->engine->evaluate($metricsWithBacklog, $this->config, 10);
 
@@ -146,15 +128,12 @@ it('includes SLA target in decision', function () {
 
 it('handles strategy returning fractional workers', function () {
     // Metrics that result in fractional worker count
-    $metrics = (object) [
-        'processingRate' => 3.5,
-        'activeWorkerCount' => 7,
-        'depth' => (object) [
-            'pending' => 0,
-            'oldestJobAgeSeconds' => 0,
-        ],
-        'trend' => (object) ['direction' => 'stable'],
-    ];
+    $metrics = createMetrics([
+        'throughput_per_minute' => 210.0, // 3.5 jobs/sec * 60
+        'active_workers' => 7,
+        'pending' => 0,
+        'oldest_job_age' => 0,
+    ]);
 
     $decision = $this->engine->evaluate($metrics, $this->config, 3);
 
@@ -166,15 +145,12 @@ it('respects strategy recommendation within bounds', function () {
     // Create scenario where strategy recommends 5 workers
     // Config allows 1-10, capacity should allow 5
     // Calculation: rate=5, workers=5 → avg_time=1s → steady=5×1=5
-    $metrics = (object) [
-        'processingRate' => 5.0,
-        'activeWorkerCount' => 5,  // Changed from 10 to 5
-        'depth' => (object) [
-            'pending' => 0,
-            'oldestJobAgeSeconds' => 0,
-        ],
-        'trend' => (object) ['direction' => 'stable'],
-    ];
+    $metrics = createMetrics([
+        'throughput_per_minute' => 300.0, // 5.0 jobs/sec * 60
+        'active_workers' => 5,  // Changed from 10 to 5
+        'pending' => 0,
+        'oldest_job_age' => 0,
+    ]);
 
     $decision = $this->engine->evaluate($metrics, $this->config, 5);
 
@@ -187,15 +163,12 @@ it('prioritizes min workers over capacity when capacity is very low', function (
     // Note: This is theoretical since we can't easily force low capacity
     // The engine should still enforce minWorkers even if capacity says 0
 
-    $emptyMetrics = (object) [
-        'processingRate' => 0.0,
-        'activeWorkerCount' => 0,
-        'depth' => (object) [
-            'pending' => 0,
-            'oldestJobAgeSeconds' => 0,
-        ],
-        'trend' => null,
-    ];
+    $emptyMetrics = createMetrics([
+        'throughput_per_minute' => 0.0,
+        'active_workers' => 0,
+        'pending' => 0,
+        'oldest_job_age' => 0,
+    ]);
 
     $decision = $this->engine->evaluate($emptyMetrics, $this->config, 0);
 
@@ -234,18 +207,12 @@ it('applies constraints in correct order', function () {
         scaleCooldownSeconds: 60,
     );
 
-    $highMetrics = (object) [
-        'processingRate' => 50.0,
-        'activeWorkerCount' => 100,
-        'depth' => (object) [
-            'pending' => 500,
-            'oldestJobAgeSeconds' => 25,
-        ],
-        'trend' => (object) [
-            'direction' => 'up',
-            'forecast' => 75.0,
-        ],
-    ];
+    $highMetrics = createMetrics([
+        'throughput_per_minute' => 3000.0, // 50.0 jobs/sec * 60
+        'active_workers' => 100,
+        'pending' => 500,
+        'oldest_job_age' => 25,
+    ]);
 
     $decision = $this->engine->evaluate($highMetrics, $config, 5);
 
