@@ -443,10 +443,27 @@ If you discover any security related issues, please email security@phpeek.com in
 - [Sylvester Damgaard](https://github.com/sylvesterdamgaard)
 - [All Contributors](../../contributors)
 
+## Resources
+
+### Documentation
+
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Deep dive into the hybrid predictive algorithm, queueing theory, and system design
+- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues, debugging tips, and solutions
+- **[examples/README.md](examples/README.md)** - Practical examples and templates for custom strategies and policies
+
+### Examples
+
+- **Custom Strategies**
+  - [TimeBasedStrategy](examples/Strategies/TimeBasedStrategy.php) - Scale workers based on time-of-day patterns
+  - [CostOptimizedStrategy](examples/Strategies/CostOptimizedStrategy.php) - Prioritize cost efficiency with conservative scaling
+
+- **Custom Policies**
+  - [SlackNotificationPolicy](examples/Policies/SlackNotificationPolicy.php) - Send Slack alerts on scaling events
+  - [MetricsLoggingPolicy](examples/Policies/MetricsLoggingPolicy.php) - Log detailed metrics to dedicated file
+
+- **Configuration Patterns**
+  - [config-examples.php](examples/config-examples.php) - 8 real-world configuration examples for different use cases
+
 ## License
 
 The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
-
-## Architecture
-
-For a deep dive into the scaling algorithm, see [ARCHITECTURE.md](ARCHITECTURE.md).
