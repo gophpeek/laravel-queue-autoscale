@@ -18,7 +18,7 @@ return [
     'prediction' => [
         'trend_window_seconds' => 300,
         'forecast_horizon_seconds' => 60,
-        'breach_threshold' => 0.8,
+        'breach_threshold' => 0.6, // 60% of SLA - proactive scaling kicks in earlier
     ],
 
     'limits' => [

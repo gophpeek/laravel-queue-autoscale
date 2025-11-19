@@ -31,8 +31,10 @@ final class PredictiveStrategy implements ScalingStrategyContract
         $oldestJobAge = $metrics->oldestJobAge;
         $activeWorkers = $metrics->activeWorkers;
 
-        // Estimate average job processing time
-        $avgJobTime = $this->estimateAvgJobTime($processingRate, $activeWorkers);
+        // Use real average duration from metrics, or estimate if unavailable
+        $avgJobTime = $metrics->avgDuration > 0
+            ? $metrics->avgDuration
+            : $this->estimateAvgJobTime($processingRate, $activeWorkers);
 
         // 1. RATE-BASED: Little's Law (L = λW)
         $steadyStateWorkers = $this->littles->calculate($processingRate, $avgJobTime);
