@@ -1,0 +1,66 @@
+<?php
+
+declare(strict_types=1);
+
+namespace PHPeek\LaravelQueueAutoscale\Policies;
+
+use Illuminate\Support\Facades\Log;
+use PHPeek\LaravelQueueAutoscale\Configuration\AutoscaleConfiguration;
+use PHPeek\LaravelQueueAutoscale\Contracts\ScalingPolicy;
+use PHPeek\LaravelQueueAutoscale\Scaling\ScalingDecision;
+
+final readonly class PolicyExecutor
+{
+    /** @var array<int, ScalingPolicy> */
+    private array $policies;
+
+    public function __construct()
+    {
+        $this->policies = $this->loadPolicies();
+    }
+
+    public function beforeScaling(ScalingDecision $decision): void
+    {
+        foreach ($this->policies as $policy) {
+            try {
+                $policy->beforeScaling($decision);
+            } catch (\Throwable $e) {
+                Log::channel(AutoscaleConfiguration::logChannel())->error(
+                    'Policy beforeScaling failed',
+                    [
+                        'policy' => get_class($policy),
+                        'error' => $e->getMessage(),
+                    ]
+                );
+            }
+        }
+    }
+
+    public function afterScaling(ScalingDecision $decision): void
+    {
+        foreach ($this->policies as $policy) {
+            try {
+                $policy->afterScaling($decision);
+            } catch (\Throwable $e) {
+                Log::channel(AutoscaleConfiguration::logChannel())->error(
+                    'Policy afterScaling failed',
+                    [
+                        'policy' => get_class($policy),
+                        'error' => $e->getMessage(),
+                    ]
+                );
+            }
+        }
+    }
+
+    /** @return array<int, ScalingPolicy> */
+    private function loadPolicies(): array
+    {
+        $policyClasses = AutoscaleConfiguration::policyClasses();
+
+        return array_map(
+            fn (string $class) => app($class),
+            $policyClasses
+        );
+    }
+}

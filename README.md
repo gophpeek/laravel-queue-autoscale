@@ -1,78 +1,442 @@
-# This is my package laravel-queue-autoscale
+# Laravel Queue Autoscale
 
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/gophpeek/laravel-queue-autoscale.svg?style=flat-square)](https://packagist.org/packages/gophpeek/laravel-queue-autoscale)
-[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/gophpeek/laravel-queue-autoscale/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/gophpeek/laravel-queue-autoscale/actions?query=workflow%3Arun-tests+branch%3Amain)
-[![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/gophpeek/laravel-queue-autoscale/fix-php-code-style-issues.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/gophpeek/laravel-queue-autoscale/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
-[![Total Downloads](https://img.shields.io/packagist/dt/gophpeek/laravel-queue-autoscale.svg?style=flat-square)](https://packagist.org/packages/gophpeek/laravel-queue-autoscale)
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/phpeek/laravel-queue-autoscale.svg?style=flat-square)](https://packagist.org/packages/phpeek/laravel-queue-autoscale)
+[![Total Downloads](https://img.shields.io/packagist/dt/phpeek/laravel-queue-autoscale.svg?style=flat-square)](https://packagist.org/packages/phpeek/laravel-queue-autoscale)
 
-This is where your description should go. Limit it to a paragraph or two. Consider adding a small example.
+**Intelligent, predictive autoscaling for Laravel queues with SLA/SLO-based optimization.**
 
-## Support us
+Laravel Queue Autoscale is a smart queue worker manager that automatically scales your queue workers based on workload, predicted demand, and service level objectives. Unlike traditional reactive solutions, it uses a **hybrid predictive algorithm** combining queueing theory (Little's Law), trend analysis, and backlog-based scaling to maintain your SLA targets.
 
-[<img src="https://github-ads.s3.eu-central-1.amazonaws.com/laravel-queue-autoscale.jpg?t=1" width="419px" />](https://spatie.be/github-ad-click/laravel-queue-autoscale)
+## Features
 
-We invest a lot of resources into creating [best in class open source packages](https://spatie.be/open-source). You can support us by [buying one of our paid products](https://spatie.be/open-source/support-us).
+- 🎯 **SLA/SLO-Based Scaling** - Define max pickup time instead of arbitrary worker counts
+- 📈 **Predictive Algorithm** - Proactive scaling using trend analysis and forecasting
+- 🔬 **Queueing Theory Foundation** - Little's Law (L = λW) for steady-state calculations
+- ⚡ **SLA Breach Prevention** - Aggressive backlog drain when approaching SLA violations
+- 🖥️ **Resource-Aware** - Respects CPU and memory limits from system metrics
+- 🔄 **Auto-Discovery** - Automatically finds all active queues including forgotten ones
+- 🎛️ **Extensible** - Custom scaling strategies and policies via interfaces
+- 📊 **Event Broadcasting** - React to scaling decisions, SLA predictions, worker changes
+- 🛡️ **Graceful Shutdown** - SIGTERM → SIGKILL worker termination
+- 💎 **DX First** - Clean API following Spatie package conventions
 
-We highly appreciate you sending us a postcard from your hometown, mentioning which of our package(s) you are using. You'll find our address on [our contact page](https://spatie.be/about-us). We publish all received postcards on [our virtual postcard wall](https://spatie.be/open-source/postcards).
+## Requirements
+
+- PHP 8.2+
+- Laravel 11.0+
+- `phpeek/laravel-queue-metrics` ^0.0.1
+- `phpeek/system-metrics` ^1.2
 
 ## Installation
 
-You can install the package via composer:
+Install via Composer:
 
 ```bash
-composer require gophpeek/laravel-queue-autoscale
+composer require phpeek/laravel-queue-autoscale
 ```
 
-You can publish and run the migrations with:
+Publish the configuration file:
 
 ```bash
-php artisan vendor:publish --tag="laravel-queue-autoscale-migrations"
-php artisan migrate
+php artisan vendor:publish --tag=queue-autoscale-config
 ```
 
-You can publish the config file with:
+## Quick Start
 
-```bash
-php artisan vendor:publish --tag="laravel-queue-autoscale-config"
-```
+### 1. Configure SLA Targets
 
-This is the contents of the published config file:
+Edit `config/queue-autoscale.php`:
 
 ```php
 return [
+    'enabled' => true,
+
+    'sla_defaults' => [
+        'max_pickup_time_seconds' => 30,  // Jobs picked up within 30s
+        'min_workers' => 1,
+        'max_workers' => 10,
+        'scale_cooldown_seconds' => 60,
+    ],
+
+    // Per-queue overrides
+    'queues' => [
+        'emails' => [
+            'max_pickup_time_seconds' => 60,  // Less strict SLA
+            'max_workers' => 5,
+        ],
+        'critical' => [
+            'max_pickup_time_seconds' => 5,   // Strict SLA
+            'max_workers' => 20,
+        ],
+    ],
 ];
 ```
 
-Optionally, you can publish the views using
+### 2. Run the Autoscaler
 
 ```bash
-php artisan vendor:publish --tag="laravel-queue-autoscale-views"
+php artisan queue:autoscale
 ```
 
-## Usage
+The autoscaler will:
+- Discover all active queues automatically
+- Monitor metrics from `laravel-queue-metrics`
+- Scale workers up/down to meet SLA targets
+- Respect CPU/memory limits from `system-metrics`
+- Log all scaling decisions
+
+### 3. Monitor with Events
 
 ```php
-$laravelQueueAutoscale = new PHPeek\LaravelQueueAutoscale();
-echo $laravelQueueAutoscale->echoPhrase('Hello, PHPeek!');
+use PHPeek\LaravelQueueAutoscale\Events\WorkersScaled;
+use PHPeek\LaravelQueueAutoscale\Events\SlaBreachPredicted;
+
+Event::listen(WorkersScaled::class, function (WorkersScaled $event) {
+    Log::info("Scaled {$event->queue}: {$event->from} → {$event->to} workers");
+    Log::info("Reason: {$event->reason}");
+});
+
+Event::listen(SlaBreachPredicted::class, function (SlaBreachPredicted $event) {
+    // Alert when SLA breach is predicted
+    Notification::route('slack', env('SLACK_ALERT_WEBHOOK'))
+        ->notify(new SlaBreachAlert($event->decision));
+});
 ```
 
+## How It Works
+
+### Hybrid Predictive Algorithm
+
+The autoscaler uses three complementary approaches and takes the **maximum** (most conservative):
+
+#### 1. **Rate-Based (Little's Law)**
+```
+Workers = Arrival Rate × Avg Processing Time
+```
+Calculates steady-state workers needed for current load.
+
+#### 2. **Trend-Based (Predictive)**
+```
+Workers = Predicted Rate × Avg Processing Time
+```
+Uses trend analysis to predict future arrival rates and scale proactively.
+
+#### 3. **Backlog-Based (SLA Protection)**
+```
+Workers = Backlog / (Time Until SLA Breach / Avg Job Time)
+```
+Aggressively scales when approaching SLA violations.
+
+### Resource Constraints
+
+All calculations are bounded by:
+- **System capacity** - CPU/memory limits from `system-metrics`
+- **Config bounds** - min/max workers from configuration
+- **Cooldown periods** - Prevents scaling thrash
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed algorithm explanation.
+
+## Configuration Reference
+
+### SLA Defaults
+
+```php
+'sla_defaults' => [
+    // Maximum time a job should wait before being picked up (seconds)
+    'max_pickup_time_seconds' => 30,
+
+    // Minimum workers to maintain (even if queue is empty)
+    'min_workers' => 1,
+
+    // Maximum workers allowed for this queue
+    'max_workers' => 10,
+
+    // Cooldown period between scaling operations (seconds)
+    'scale_cooldown_seconds' => 60,
+],
+```
+
+### Per-Queue Overrides
+
+```php
+'queues' => [
+    'queue-name' => [
+        'max_pickup_time_seconds' => 60,
+        'min_workers' => 2,
+        'max_workers' => 20,
+        'scale_cooldown_seconds' => 30,
+    ],
+],
+```
+
+### Prediction Settings
+
+```php
+'prediction' => [
+    // How far ahead to forecast (seconds)
+    'forecast_horizon_seconds' => 60,
+
+    // When to trigger backlog drain (0-1, e.g., 0.8 = 80% of SLA time)
+    'breach_threshold' => 0.8,
+],
+```
+
+### Resource Limits
+
+```php
+'resource_limits' => [
+    // Maximum CPU usage percentage
+    'max_cpu_percent' => 90,
+
+    // Number of CPU cores to reserve
+    'reserve_cpu_cores' => 0.5,
+
+    // Maximum memory usage percentage
+    'max_memory_percent' => 85,
+
+    // Estimated memory per worker (MB)
+    'worker_memory_mb_estimate' => 128,
+],
+```
+
+### Worker Settings
+
+```php
+'worker' => [
+    // Worker process arguments
+    'tries' => 3,
+    'timeout_seconds' => 3600,
+    'sleep_seconds' => 3,
+
+    // Graceful shutdown timeout before SIGKILL
+    'shutdown_timeout_seconds' => 30,
+],
+```
+
+### Strategy Configuration
+
+```php
+'strategy' => [
+    // Scaling strategy class (must implement ScalingStrategyContract)
+    'class' => \PHPeek\LaravelQueueAutoscale\Scaling\Strategies\PredictiveStrategy::class,
+],
+```
+
+## Custom Scaling Strategies
+
+Implement your own scaling logic:
+
+```php
+use PHPeek\LaravelQueueAutoscale\Contracts\ScalingStrategyContract;
+use PHPeek\LaravelQueueAutoscale\Configuration\QueueConfiguration;
+
+class CustomStrategy implements ScalingStrategyContract
+{
+    public function calculateTargetWorkers(object $metrics, QueueConfiguration $config): int
+    {
+        // Your custom logic here
+        return (int) ceil($metrics->processingRate * 2);
+    }
+
+    public function getLastReason(): string
+    {
+        return 'Custom strategy: doubled the processing rate';
+    }
+
+    public function getLastPrediction(): ?float
+    {
+        return null; // Optional: estimated pickup time
+    }
+}
+```
+
+Register in config:
+
+```php
+'strategy' => [
+    'class' => \App\Scaling\CustomStrategy::class,
+],
+```
+
+## Scaling Policies
+
+Add before/after hooks to scaling operations:
+
+```php
+use PHPeek\LaravelQueueAutoscale\Contracts\ScalingPolicy;
+use PHPeek\LaravelQueueAutoscale\Scaling\ScalingDecision;
+
+class NotifySlackPolicy implements ScalingPolicy
+{
+    public function beforeScaling(ScalingDecision $decision): void
+    {
+        if ($decision->shouldScaleUp()) {
+            Slack::notify("About to scale up {$decision->queue}");
+        }
+    }
+
+    public function afterScaling(ScalingDecision $decision, bool $success): void
+    {
+        if (!$success) {
+            Slack::notify("Failed to scale {$decision->queue}");
+        }
+    }
+}
+```
+
+Register in config:
+
+```php
+'policies' => [
+    \App\Policies\NotifySlackPolicy::class,
+],
+```
+
+## Events
+
+Subscribe to scaling events:
+
+### ScalingDecisionMade
+
+```php
+use PHPeek\LaravelQueueAutoscale\Events\ScalingDecisionMade;
+
+Event::listen(ScalingDecisionMade::class, function (ScalingDecisionMade $event) {
+    $decision = $event->decision;
+
+    Log::info('Scaling decision', [
+        'queue' => $decision->queue,
+        'current' => $decision->currentWorkers,
+        'target' => $decision->targetWorkers,
+        'reason' => $decision->reason,
+    ]);
+});
+```
+
+### WorkersScaled
+
+```php
+use PHPeek\LaravelQueueAutoscale\Events\WorkersScaled;
+
+Event::listen(WorkersScaled::class, function (WorkersScaled $event) {
+    Metrics::gauge('queue.workers', $event->to, [
+        'queue' => $event->queue,
+        'action' => $event->action, // 'scaled_up' or 'scaled_down'
+    ]);
+});
+```
+
+### SlaBreachPredicted
+
+```php
+use PHPeek\LaravelQueueAutoscale\Events\SlaBreachPredicted;
+
+Event::listen(SlaBreachPredicted::class, function (SlaBreachPredicted $event) {
+    $decision = $event->decision;
+
+    // Alert when pickup time is predicted to exceed SLA
+    if ($decision->isSlaBreachRisk()) {
+        PagerDuty::alert("SLA breach predicted for {$decision->queue}");
+    }
+});
+```
+
+## Advanced Usage
+
+### Running as Daemon
+
+Use Supervisor to keep the autoscaler running:
+
+```ini
+[program:queue-autoscale]
+command=php /path/to/artisan queue:autoscale
+directory=/path/to/project
+user=www-data
+autostart=true
+autorestart=true
+redirect_stderr=true
+stdout_logfile=/path/to/logs/autoscale.log
+```
+
+### Custom Evaluation Interval
+
+```bash
+php artisan queue:autoscale --interval=10
+```
+
+Default is 5 seconds between evaluations.
+
+### Debugging
+
+Enable detailed logging:
+
+```php
+'log_channel' => 'stack', // Use your preferred channel
+```
+
+View scaling decisions:
+
+```bash
+tail -f storage/logs/laravel.log | grep autoscale
+```
+
+## Metrics Integration
+
+The autoscaler relies on `laravel-queue-metrics` for all queue data:
+
+```php
+use PHPeek\LaravelQueueMetrics\QueueMetrics;
+
+// Example: What the autoscaler sees
+$allQueues = QueueMetrics::getAllQueuesWithMetrics();
+
+foreach ($allQueues as $queue) {
+    echo "Queue: {$queue->connection}/{$queue->queue}\n";
+    echo "Processing Rate: {$queue->processingRate} jobs/sec\n";
+    echo "Backlog: {$queue->depth->pending} jobs\n";
+    echo "Oldest Job: {$queue->depth->oldestJobAgeSeconds}s\n";
+    echo "Trend: {$queue->trend->direction}\n";
+}
+```
+
+## Comparison with Horizon
+
+| Feature | Laravel Horizon | Queue Autoscale |
+|---------|----------------|-----------------|
+| **Scaling Logic** | Manual supervisor config | Automatic predictive |
+| **Optimization Goal** | Worker count targets | SLA/SLO targets |
+| **Algorithm** | Static configuration | Hybrid (Little's Law + Trend + Backlog) |
+| **Resource Awareness** | No | Yes (CPU/memory limits) |
+| **Auto-Discovery** | Manual queue config | Automatic |
+| **Prediction** | Reactive only | Proactive trend-based |
+| **SLA Protection** | No | Yes (breach prevention) |
+| **Extensibility** | Limited | Full (strategies, policies) |
+
 ## Testing
+
+Run the test suite:
 
 ```bash
 composer test
 ```
 
+Run with coverage:
+
+```bash
+composer test:coverage
+```
+
 ## Changelog
 
-Please see [CHANGELOG](CHANGELOG.md) for more information on what has changed recently.
+Please see [CHANGELOG](CHANGELOG.md) for recent changes.
 
 ## Contributing
 
 Please see [CONTRIBUTING](CONTRIBUTING.md) for details.
 
-## Security Vulnerabilities
+## Security
 
-Please review [our security policy](../../security/policy) on how to report security vulnerabilities.
+If you discover any security related issues, please email security@phpeek.com instead of using the issue tracker.
 
 ## Credits
 
@@ -82,3 +446,7 @@ Please review [our security policy](../../security/policy) on how to report secu
 ## License
 
 The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
+
+## Architecture
+
+For a deep dive into the scaling algorithm, see [ARCHITECTURE.md](ARCHITECTURE.md).
