@@ -1,12 +1,19 @@
 {
-    "name": "gophpeek/laravel-queue-autoscale",
-    "description": "This is my package laravel-queue-autoscale",
+    "name": "phpeek/laravel-queue-autoscale",
+    "description": "Intelligent, predictive autoscaling for Laravel queues with SLA/SLO-based optimization",
     "keywords": [
         "PHPeek",
         "laravel",
-        "laravel-queue-autoscale"
+        "queue",
+        "autoscale",
+        "autoscaling",
+        "worker",
+        "sla",
+        "slo",
+        "predictive",
+        "little's law"
     ],
-    "homepage": "https://github.com/gophpeek/laravel-queue-autoscale",
+    "homepage": "https://github.com/phpeek/laravel-queue-autoscale",
     "license": "MIT",
     "authors": [
         {
@@ -16,10 +23,12 @@
         }
     ],
     "require": {
-        "php": "^8.3",
-        "gophpeek/laravel-queue-metrics": "^0.0.1",
+        "php": "^8.2",
+        "phpeek/laravel-queue-metrics": "^0.0.1",
+        "phpeek/system-metrics": "^1.2",
         "illuminate/contracts": "^11.0||^12.0",
-        "spatie/laravel-package-tools": "^1.16"
+        "spatie/laravel-package-tools": "^1.16",
+        "symfony/process": "^7.0"
     },
     "require-dev": {
         "laravel/pint": "^1.14",
