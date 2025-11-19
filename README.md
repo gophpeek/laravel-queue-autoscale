@@ -1,6 +1,8 @@
 # Laravel Queue Autoscale
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/phpeek/laravel-queue-autoscale.svg?style=flat-square)](https://packagist.org/packages/phpeek/laravel-queue-autoscale)
+[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/phpeek/laravel-queue-autoscale/tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/phpeek/laravel-queue-autoscale/actions?query=workflow%3Atests+branch%3Amain)
+[![GitHub Code Quality Action Status](https://img.shields.io/github/actions/workflow/status/phpeek/laravel-queue-autoscale/code-quality.yml?branch=main&label=code%20quality&style=flat-square)](https://github.com/phpeek/laravel-queue-autoscale/actions?query=workflow%3Acode-quality+branch%3Amain)
 [![Total Downloads](https://img.shields.io/packagist/dt/phpeek/laravel-queue-autoscale.svg?style=flat-square)](https://packagist.org/packages/phpeek/laravel-queue-autoscale)
 
 **Intelligent, predictive autoscaling for Laravel queues with SLA/SLO-based optimization.**
