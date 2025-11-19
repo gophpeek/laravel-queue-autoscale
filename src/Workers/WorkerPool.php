@@ -80,4 +80,17 @@ final class WorkerPool
             fn (WorkerProcess $w) => $w->isDead()
         );
     }
+
+    /** @return array<int, WorkerProcess> */
+    public function getByConnection(string $connection, string $queue): array
+    {
+        return $this->workers->filter(
+            fn (WorkerProcess $w) => $w->matches($connection, $queue)
+        )->values()->all();
+    }
+
+    public function reset(): void
+    {
+        $this->workers = collect();
+    }
 }
