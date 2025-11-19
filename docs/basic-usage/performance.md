@@ -1,4 +1,10 @@
-# Performance Tuning Guide
+---
+title: "Performance Tuning"
+description: "Optimize Laravel Queue Autoscale for maximum efficiency and cost-effectiveness"
+weight: 14
+---
+
+# Performance Tuning
 
 Optimize Laravel Queue Autoscale for maximum efficiency and cost-effectiveness.
 

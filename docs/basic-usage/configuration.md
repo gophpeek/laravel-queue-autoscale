@@ -1,4 +1,10 @@
-# Configuration Guide
+---
+title: "Configuration"
+description: "Complete reference for configuring Laravel Queue Autoscale with SLA targets and worker limits"
+weight: 11
+---
+
+# Configuration
 
 Complete reference for configuring Laravel Queue Autoscale.
 
@@ -683,8 +689,8 @@ php artisan queue:autoscale:evaluate --queue=critical --dry-run
 
 ## See Also
 
-- [HOW_IT_WORKS.md](HOW_IT_WORKS.md) - Understanding the scaling algorithm
-- [CUSTOM_STRATEGIES.md](CUSTOM_STRATEGIES.md) - Writing custom scaling strategies
-- [SCALING_POLICIES.md](SCALING_POLICIES.md) - Implementing scaling policies
-- [DEPLOYMENT.md](DEPLOYMENT.md) - Production deployment guide
-- [MONITORING.md](MONITORING.md) - Monitoring and observability
+- [How It Works](how-it-works) - Understanding the scaling algorithm
+- [Custom Strategies](../advanced-usage/custom-strategies) - Writing custom scaling strategies
+- [Scaling Policies](../advanced-usage/scaling-policies) - Implementing scaling policies
+- [Deployment](../advanced-usage/deployment) - Production deployment guide
+- [Monitoring](monitoring) - Monitoring and observability

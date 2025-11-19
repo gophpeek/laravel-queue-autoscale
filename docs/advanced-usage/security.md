@@ -1,3 +1,9 @@
+---
+title: "Security"
+description: "Security policy and vulnerability reporting for Laravel Queue Autoscale"
+weight: 33
+---
+
 # Security Policy
 
 ## Supported Versions

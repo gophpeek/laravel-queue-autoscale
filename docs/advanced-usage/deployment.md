@@ -1,4 +1,10 @@
-# Deployment Guide
+---
+title: "Deployment"
+description: "Complete guide for deploying Laravel Queue Autoscale to production environments"
+weight: 32
+---
+
+# Deployment
 
 Complete guide for deploying Laravel Queue Autoscale to production.
 
@@ -690,6 +696,6 @@ ps aux | grep "queue:work"
 
 ## Next Steps
 
-- [Monitoring Guide](MONITORING.md) - Set up comprehensive monitoring
-- [Performance Tuning](PERFORMANCE.md) - Optimize for your workload
-- [Troubleshooting](TROUBLESHOOTING.md) - Common issues and solutions
+- [Monitoring Guide](../basic-usage/monitoring) - Set up comprehensive monitoring
+- [Performance Tuning](../basic-usage/performance) - Optimize for your workload
+- [Troubleshooting](../basic-usage/troubleshooting) - Common issues and solutions

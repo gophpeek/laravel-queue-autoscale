@@ -1,4 +1,10 @@
-# Resource Constraints Algorithm
+---
+title: "Resource Constraints"
+description: "System resource management and constraint enforcement for safe autoscaling"
+weight: 54
+---
+
+# Resource Constraints
 
 System resource management and constraint enforcement for safe autoscaling.
 
@@ -474,7 +480,7 @@ $constraintFrequency = DB::table('constraint_events')
 
 ## See Also
 
-- [LITTLES_LAW.md](LITTLES_LAW.md) - Base calculation
-- [TREND_PREDICTION.md](TREND_PREDICTION.md) - Predictive scaling
-- [BACKLOG_DRAIN.md](BACKLOG_DRAIN.md) - SLA protection
-- [PERFORMANCE.md](../guides/PERFORMANCE.md) - Performance tuning
+- [Little's Law](littles-law) - Base calculation
+- [Trend Prediction](trend-prediction) - Predictive scaling
+- [Backlog Drain](backlog-drain) - SLA protection
+- [Performance Tuning](../basic-usage/performance) - Performance tuning

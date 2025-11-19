@@ -1,4 +1,10 @@
-# Backlog Drain Algorithm
+---
+title: "Backlog Drain"
+description: "SLA-focused algorithm for preventing service level agreement breaches"
+weight: 53
+---
+
+# Backlog Drain
 
 SLA-focused algorithm for preventing service level agreement breaches.
 
@@ -453,6 +459,6 @@ if ($oldestAge / $slaTarget >= 0.9) {
 
 ## See Also
 
-- [LITTLES_LAW.md](LITTLES_LAW.md) - Steady-state calculation
-- [TREND_PREDICTION.md](TREND_PREDICTION.md) - Predictive scaling
-- [RESOURCE_CONSTRAINTS.md](RESOURCE_CONSTRAINTS.md) - Resource management
+- [Little's Law](littles-law) - Steady-state calculation
+- [Trend Prediction](trend-prediction) - Predictive scaling
+- [Resource Constraints](resource-constraints) - Resource management

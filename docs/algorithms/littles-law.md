@@ -1,4 +1,10 @@
-# Little's Law Algorithm
+---
+title: "Little's Law"
+description: "Mathematical foundation for queue-based autoscaling using Little's Law"
+weight: 51
+---
+
+# Little's Law
 
 Mathematical foundation for queue-based autoscaling using Little's Law.
 
@@ -272,6 +278,6 @@ class HybridPredictiveStrategy
 
 ## See Also
 
-- [TREND_PREDICTION.md](TREND_PREDICTION.md) - Predictive scaling
-- [BACKLOG_DRAIN.md](BACKLOG_DRAIN.md) - SLA protection
-- [HOW_IT_WORKS.md](../guides/HOW_IT_WORKS.md) - Complete algorithm explanation
+- [Trend Prediction](trend-prediction) - Predictive scaling
+- [Backlog Drain](backlog-drain) - SLA protection
+- [How It Works](../basic-usage/how-it-works) - Complete algorithm explanation

@@ -1,4 +1,10 @@
-# Troubleshooting Guide
+---
+title: "Troubleshooting"
+description: "Common issues and solutions for Laravel Queue Autoscale deployment and operation"
+weight: 13
+---
+
+# Troubleshooting
 
 Common issues and solutions for Laravel Queue Autoscale.
 

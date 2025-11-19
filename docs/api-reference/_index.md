@@ -1,3 +1,9 @@
+---
+title: "API Reference"
+description: "Complete API documentation for Laravel Queue Autoscale contracts and classes"
+weight: 70
+---
+
 # API Reference
 
 Complete API documentation for Laravel Queue Autoscale.
@@ -5,17 +11,16 @@ Complete API documentation for Laravel Queue Autoscale.
 ## Core Components
 
 ### Configuration
-- [Configuration Objects](CONFIGURATION.md) - QueueConfiguration, ResourceLimits
+Configuration objects and data structures
 
 ### Scaling
-- [Strategies](STRATEGIES.md) - ScalingStrategyContract, HybridPredictiveStrategy
-- [Policies](POLICIES.md) - ScalingPolicyContract, built-in policies
+Scaling strategies and policies interfaces
 
 ### Events
-- [Events](EVENTS.md) - ScalingDecisionMade, WorkersScaled, ScalingFailed
+Laravel events for autoscaling lifecycle
 
 ### Workers
-- [Worker Management](WORKERS.md) - WorkerProcess, WorkerPool, WorkerSpawner
+Worker process and pool management
 
 ## Quick Reference
 
@@ -49,6 +54,6 @@ interface ScalingPolicyContract
 
 ## See Also
 
-- [Guides](../guides/) - Implementation guides
-- [Algorithms](../algorithms/) - Mathematical foundations
-- [Examples](../../examples/) - Real-world usage
+- [Basic Usage](../basic-usage) - Implementation guides
+- [Advanced Usage](../advanced-usage) - Custom strategies and policies
+- [Algorithms](../algorithms) - Mathematical foundations

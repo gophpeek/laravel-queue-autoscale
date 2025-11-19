@@ -1,6 +1,12 @@
-# How Laravel Queue Autoscale Works
+---
+title: "How It Works"
+description: "Comprehensive guide to understanding how the autoscaler makes scaling decisions"
+weight: 10
+---
 
-A comprehensive guide to understanding how the autoscaler makes scaling decisions.
+# How It Works
+
+Laravel Queue Autoscale uses a hybrid predictive algorithm to make intelligent scaling decisions.
 
 ## Overview
 
@@ -425,7 +431,7 @@ php artisan vendor:publish --tag=queue-metrics-config
 
 ## Next Steps
 
-- [Configuration Guide](CONFIGURATION.md) - Configure SLA targets and limits
-- [Custom Strategies](CUSTOM_STRATEGIES.md) - Write your own scaling logic
-- [Monitoring Guide](MONITORING.md) - Track autoscaler performance
-- [Algorithm Details](../algorithms/ARCHITECTURE.md) - Deep dive into math
+- [Configuration Guide](configuration) - Configure SLA targets and limits
+- [Custom Strategies](../advanced-usage/custom-strategies) - Write your own scaling logic
+- [Monitoring Guide](monitoring) - Track autoscaler performance
+- [Algorithm Details](../algorithms/architecture) - Deep dive into math

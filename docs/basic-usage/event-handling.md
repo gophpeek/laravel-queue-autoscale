@@ -1,4 +1,10 @@
-# Event Handling Guide
+---
+title: "Event Handling"
+description: "Complete guide to using Laravel events with Queue Autoscale for notifications and integrations"
+weight: 15
+---
+
+# Event Handling
 
 Complete guide to using Laravel events with Queue Autoscale.
 

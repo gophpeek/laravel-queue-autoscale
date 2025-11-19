@@ -1,4 +1,10 @@
-# Custom Scaling Strategies
+---
+title: "Custom Strategies"
+description: "Guide to implementing custom scaling strategies for Laravel Queue Autoscale"
+weight: 30
+---
+
+# Custom Strategies
 
 Guide to implementing custom scaling strategies for Laravel Queue Autoscale.
 
@@ -816,7 +822,7 @@ if ($targetWorkers > $currentWorkers) {
 
 ## See Also
 
-- [SCALING_POLICIES.md](SCALING_POLICIES.md) - Implementing scaling policies
-- [HOW_IT_WORKS.md](HOW_IT_WORKS.md) - Understanding the default strategy
-- [CONFIGURATION.md](CONFIGURATION.md) - Configuring strategies
-- [API Reference: Strategies](../api/STRATEGIES.md) - Complete API documentation
+- [Scaling Policies](scaling-policies) - Implementing scaling policies
+- [How It Works](../basic-usage/how-it-works) - Understanding the default strategy
+- [Configuration](../basic-usage/configuration) - Configuring strategies
+- [API Reference](../api-reference) - Complete API documentation

@@ -1,4 +1,10 @@
-# Monitoring and Observability Guide
+---
+title: "Monitoring"
+description: "Complete guide to monitoring Laravel Queue Autoscale in production with metrics and alerts"
+weight: 12
+---
+
+# Monitoring
 
 Complete guide to monitoring Laravel Queue Autoscale in production.
 
@@ -723,7 +729,7 @@ if ($processingRate < expected) {
 
 ## See Also
 
-- [EVENT_HANDLING.md](EVENT_HANDLING.md) - Using events for monitoring
-- [SCALING_POLICIES.md](SCALING_POLICIES.md) - Policies for metrics collection
-- [DEPLOYMENT.md](DEPLOYMENT.md) - Production deployment
-- [TROUBLESHOOTING.md](../TROUBLESHOOTING.md) - Detailed troubleshooting guide
+- [Event Handling](event-handling) - Using events for monitoring
+- [Scaling Policies](../advanced-usage/scaling-policies) - Policies for metrics collection
+- [Deployment](../advanced-usage/deployment) - Production deployment
+- [Troubleshooting](troubleshooting) - Detailed troubleshooting guide

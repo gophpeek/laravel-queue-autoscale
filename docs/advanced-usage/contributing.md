@@ -1,4 +1,10 @@
-# Contributing to Laravel Queue Autoscale
+---
+title: "Contributing"
+description: "Guidelines for contributing to Laravel Queue Autoscale development"
+weight: 34
+---
+
+# Contributing
 
 First off, thank you for considering contributing to Laravel Queue Autoscale! It's people like you that make this package better for everyone.
 

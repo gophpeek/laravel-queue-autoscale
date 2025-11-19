@@ -1,4 +1,10 @@
-# Trend Prediction Algorithm
+---
+title: "Trend Prediction"
+description: "Predictive autoscaling using trend analysis and forecasting"
+weight: 52
+---
+
+# Trend Prediction
 
 Predictive autoscaling using trend analysis and forecasting.
 
@@ -395,6 +401,6 @@ if ($error > 0.3) {  // 30% error
 
 ## See Also
 
-- [LITTLES_LAW.md](LITTLES_LAW.md) - Steady-state calculation
-- [BACKLOG_DRAIN.md](BACKLOG_DRAIN.md) - SLA protection
-- [RESOURCE_CONSTRAINTS.md](RESOURCE_CONSTRAINTS.md) - Constraint handling
+- [Little's Law](littles-law) - Steady-state calculation
+- [Backlog Drain](backlog-drain) - SLA protection
+- [Resource Constraints](resource-constraints) - Constraint handling

@@ -1,4 +1,10 @@
-# Scaling Policies Guide
+---
+title: "Scaling Policies"
+description: "Complete guide to implementing and using scaling policies in Laravel Queue Autoscale"
+weight: 31
+---
+
+# Scaling Policies
 
 Complete guide to implementing and using scaling policies in Laravel Queue Autoscale.
 
@@ -822,7 +828,7 @@ class DatadogMetricsPolicy implements ScalingPolicyContract
 
 ## See Also
 
-- [CUSTOM_STRATEGIES.md](CUSTOM_STRATEGIES.md) - Implementing custom strategies
-- [EVENT_HANDLING.md](EVENT_HANDLING.md) - Using Laravel events
-- [MONITORING.md](MONITORING.md) - Monitoring and observability
-- [API Reference: Policies](../api/POLICIES.md) - Complete API documentation
+- [Custom Strategies](custom-strategies) - Implementing custom strategies
+- [Event Handling](../basic-usage/event-handling) - Using Laravel events
+- [Monitoring](../basic-usage/monitoring) - Monitoring and observability
+- [API Reference](../api-reference) - Complete API documentation
