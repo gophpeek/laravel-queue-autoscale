@@ -39,7 +39,7 @@ class SlackNotificationPolicy implements ScalingPolicy
 
     public function after(ScalingDecision $decision): void
     {
-        if (!$this->webhookUrl) {
+        if (! $this->webhookUrl) {
             return;
         }
 
@@ -87,13 +87,13 @@ class SlackNotificationPolicy implements ScalingPolicy
                         [
                             'title' => 'Predicted Pickup Time',
                             'value' => $decision->predictedPickupTime !== null
-                                ? round($decision->predictedPickupTime, 1) . 's'
+                                ? round($decision->predictedPickupTime, 1).'s'
                                 : 'N/A',
                             'short' => true,
                         ],
                         [
                             'title' => 'SLA Target',
-                            'value' => $decision->slaTarget . 's',
+                            'value' => $decision->slaTarget.'s',
                             'short' => true,
                         ],
                     ],

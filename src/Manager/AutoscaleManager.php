@@ -7,7 +7,6 @@ namespace PHPeek\LaravelQueueAutoscale\Manager;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use PHPeek\LaravelQueueAutoscale\Configuration\AutoscaleConfiguration;
-use Symfony\Component\Console\Output\OutputInterface;
 use PHPeek\LaravelQueueAutoscale\Configuration\QueueConfiguration;
 use PHPeek\LaravelQueueAutoscale\Events\ScalingDecisionMade;
 use PHPeek\LaravelQueueAutoscale\Events\SlaBreachPredicted;
@@ -20,6 +19,7 @@ use PHPeek\LaravelQueueAutoscale\Workers\WorkerSpawner;
 use PHPeek\LaravelQueueAutoscale\Workers\WorkerTerminator;
 use PHPeek\LaravelQueueMetrics\DataTransferObjects\QueueMetricsData;
 use PHPeek\LaravelQueueMetrics\Facades\QueueMetrics;
+use Symfony\Component\Console\Output\OutputInterface;
 
 final class AutoscaleManager
 {
@@ -163,7 +163,7 @@ final class AutoscaleManager
 
         // Warn if throughput data unavailable (needs historical data)
         if ($metrics->throughputPerMinute === 0.0 && $metrics->activeWorkers > 0) {
-            $this->verbose("  ⚠️  Throughput=0 despite active workers - metrics package needs more historical data", 'debug');
+            $this->verbose('  ⚠️  Throughput=0 despite active workers - metrics package needs more historical data', 'debug');
         }
 
         // 1. Get configuration
@@ -217,7 +217,7 @@ final class AutoscaleManager
         } elseif ($decision->shouldScaleDown()) {
             $this->scaleDown($decision);
         } else {
-            $this->verbose("  ✓ No scaling action needed", 'debug');
+            $this->verbose('  ✓ No scaling action needed', 'debug');
         }
 
         // 9. Execute policies (after)
@@ -227,7 +227,7 @@ final class AutoscaleManager
         event(new ScalingDecisionMade($decision));
 
         if ($decision->isSlaBreachRisk()) {
-            $this->verbose("  ⚠️  SLA BREACH RISK DETECTED!", 'warn');
+            $this->verbose('  ⚠️  SLA BREACH RISK DETECTED!', 'warn');
             event(new SlaBreachPredicted($decision));
         }
 
@@ -321,7 +321,7 @@ final class AutoscaleManager
         $dead = $this->pool->getDeadWorkers();
 
         if (count($dead) > 0) {
-            $this->verbose("🔧 Cleaning up ".count($dead).' dead worker(s)', 'warn');
+            $this->verbose('🔧 Cleaning up '.count($dead).' dead worker(s)', 'warn');
         }
 
         foreach ($dead as $worker) {
@@ -340,7 +340,7 @@ final class AutoscaleManager
     {
         $workerCount = count($this->pool->all());
 
-        $this->verbose("🛑 Shutting down autoscale manager", 'info');
+        $this->verbose('🛑 Shutting down autoscale manager', 'info');
         $this->verbose("   Terminating {$workerCount} worker(s)...", 'info');
 
         Log::channel(AutoscaleConfiguration::logChannel())->info(
@@ -352,7 +352,7 @@ final class AutoscaleManager
             $this->terminator->terminate($worker);
         }
 
-        $this->verbose("✓ Shutdown complete", 'info');
+        $this->verbose('✓ Shutdown complete', 'info');
     }
 
     private function inCooldown(string $key, int $cooldownSeconds): bool

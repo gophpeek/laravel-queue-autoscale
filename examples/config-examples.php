@@ -210,35 +210,42 @@ return [
     ],
 
     // Use custom strategy that switches based on time
-    'strategy' => new class implements \PHPeek\LaravelQueueAutoscale\Contracts\ScalingStrategyContract {
+    'strategy' => new class implements \PHPeek\LaravelQueueAutoscale\Contracts\ScalingStrategyContract
+    {
         private string $lastReason = '';
+
         private ?float $lastPrediction = null;
 
-        public function calculateTargetWorkers(object $metrics, $config): int {
+        public function calculateTargetWorkers(object $metrics, $config): int
+        {
             $hour = (int) now()->format('H');
 
             // Business hours: 9am-5pm use predictive
             if ($hour >= 9 && $hour < 17) {
                 $strategy = app(\PHPeek\LaravelQueueAutoscale\Scaling\Strategies\PredictiveStrategy::class);
                 $workers = $strategy->calculateTargetWorkers($metrics, $config);
-                $this->lastReason = 'Business hours (predictive): ' . $strategy->getLastReason();
+                $this->lastReason = 'Business hours (predictive): '.$strategy->getLastReason();
                 $this->lastPrediction = $strategy->getLastPrediction();
+
                 return $workers;
             }
 
             // Off hours: use cost-optimized
-            $strategy = new \App\QueueAutoscale\Strategies\CostOptimizedStrategy();
+            $strategy = new \App\QueueAutoscale\Strategies\CostOptimizedStrategy;
             $workers = $strategy->calculateTargetWorkers($metrics, $config);
-            $this->lastReason = 'Off hours (cost-optimized): ' . $strategy->getLastReason();
+            $this->lastReason = 'Off hours (cost-optimized): '.$strategy->getLastReason();
             $this->lastPrediction = $strategy->getLastPrediction();
+
             return $workers;
         }
 
-        public function getLastReason(): string {
+        public function getLastReason(): string
+        {
             return $this->lastReason;
         }
 
-        public function getLastPrediction(): ?float {
+        public function getLastPrediction(): ?float
+        {
             return $this->lastPrediction;
         }
     },

@@ -129,11 +129,11 @@ class MetricsLoggingPolicy implements ScalingPolicy
     private function configureLogChannel(): void
     {
         // Dynamically add log channel if not already configured
-        if (!config("logging.channels.{$this->logChannel}")) {
+        if (! config("logging.channels.{$this->logChannel}")) {
             config([
                 "logging.channels.{$this->logChannel}" => [
                     'driver' => 'daily',
-                    'path' => storage_path("logs/autoscale-metrics.log"),
+                    'path' => storage_path('logs/autoscale-metrics.log'),
                     'level' => 'debug',
                     'days' => 14,
                 ],

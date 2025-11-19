@@ -20,6 +20,7 @@ use PHPeek\LaravelQueueAutoscale\Contracts\ScalingStrategyContract;
 class TimeBasedStrategy implements ScalingStrategyContract
 {
     private string $lastReason = 'No calculation performed yet';
+
     private ?float $lastPrediction = null;
 
     public function __construct(

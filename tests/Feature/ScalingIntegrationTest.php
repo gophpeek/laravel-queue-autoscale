@@ -49,8 +49,10 @@ it('completes full scaling evaluation successfully', function () {
 });
 
 it('integrates with custom scaling strategies', function () {
-    $customStrategy = new class implements \PHPeek\LaravelQueueAutoscale\Contracts\ScalingStrategyContract {
+    $customStrategy = new class implements \PHPeek\LaravelQueueAutoscale\Contracts\ScalingStrategyContract
+    {
         private string $lastReason = 'custom strategy';
+
         private ?float $lastPrediction = 0.0;
 
         public function calculateTargetWorkers(object $metrics, $config): int
