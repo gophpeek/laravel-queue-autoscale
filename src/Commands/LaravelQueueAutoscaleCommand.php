@@ -29,6 +29,7 @@ class LaravelQueueAutoscaleCommand extends Command
         $this->line('');
 
         $manager->configure((int) $this->option('interval'));
+        $manager->setOutput($this->output);
 
         return $manager->run();
     }

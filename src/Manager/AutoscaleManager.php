@@ -7,6 +7,7 @@ namespace PHPeek\LaravelQueueAutoscale\Manager;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use PHPeek\LaravelQueueAutoscale\Configuration\AutoscaleConfiguration;
+use Symfony\Component\Console\Output\OutputInterface;
 use PHPeek\LaravelQueueAutoscale\Configuration\QueueConfiguration;
 use PHPeek\LaravelQueueAutoscale\Events\ScalingDecisionMade;
 use PHPeek\LaravelQueueAutoscale\Events\SlaBreachPredicted;
@@ -28,6 +29,8 @@ final class AutoscaleManager
 
     private array $lastScaleTime = [];
 
+    private ?OutputInterface $output = null;
+
     public function __construct(
         private readonly ScalingEngine $engine,
         private readonly WorkerSpawner $spawner,
@@ -41,6 +44,33 @@ final class AutoscaleManager
     public function configure(int $interval): void
     {
         $this->interval = $interval;
+    }
+
+    public function setOutput(OutputInterface $output): void
+    {
+        $this->output = $output;
+    }
+
+    private function verbose(string $message, string $level = 'info'): void
+    {
+        if (! $this->output) {
+            return;
+        }
+
+        if (! $this->output->isVerbose()) {
+            return;
+        }
+
+        $timestamp = now()->format('H:i:s');
+        $prefix = match ($level) {
+            'debug' => '<fg=gray>[DEBUG]</>',
+            'info' => '<fg=cyan>[INFO]</>',
+            'warn' => '<fg=yellow>[WARN]</>',
+            'error' => '<fg=red>[ERROR]</>',
+            default => '[INFO]',
+        };
+
+        $this->output->writeln("[$timestamp] $prefix $message");
     }
 
     public function run(): int
@@ -128,20 +158,33 @@ final class AutoscaleManager
 
     private function evaluateQueue(string $connection, string $queue, QueueMetricsData $metrics): void
     {
+        $this->verbose("Evaluating queue: {$connection}:{$queue}", 'debug');
+        $this->verbose("  Metrics: pending={$metrics->pending}, oldest_age={$metrics->oldestJobAge}s, throughput={$metrics->throughputPerMinute}/min", 'debug');
+
         // 1. Get configuration
         $config = QueueConfiguration::fromConfig($connection, $queue);
 
         // 2. Check cooldown
         $key = "{$connection}:{$queue}";
         if ($this->inCooldown($key, $config->scaleCooldownSeconds)) {
+            $this->verbose("  ⏸️  In cooldown period, skipping", 'debug');
+
             return;
         }
 
         // 3. Count current workers
         $currentWorkers = $this->pool->count($connection, $queue);
+        $this->verbose("  Current workers: {$currentWorkers}", 'debug');
 
         // 4. Calculate scaling decision
         $decision = $this->engine->evaluate($metrics, $config, $currentWorkers);
+
+        $this->verbose("  📊 Decision: {$currentWorkers} → {$decision->targetWorkers} workers", 'info');
+        $this->verbose("     Reason: {$decision->reason}", 'info');
+
+        if ($decision->predictedPickupTime !== null) {
+            $this->verbose("     Predicted pickup time: {$decision->predictedPickupTime}s (SLA: {$decision->slaTarget}s)", 'info');
+        }
 
         // 5. Execute policies (before)
         $this->policies->beforeScaling($decision);
@@ -151,6 +194,8 @@ final class AutoscaleManager
             $this->scaleUp($decision);
         } elseif ($decision->shouldScaleDown()) {
             $this->scaleDown($decision);
+        } else {
+            $this->verbose("  ✓ No scaling action needed", 'debug');
         }
 
         // 7. Execute policies (after)
@@ -160,6 +205,7 @@ final class AutoscaleManager
         event(new ScalingDecisionMade($decision));
 
         if ($decision->isSlaBreachRisk()) {
+            $this->verbose("  ⚠️  SLA BREACH RISK DETECTED!", 'warn');
             event(new SlaBreachPredicted($decision));
         }
 
@@ -173,11 +219,17 @@ final class AutoscaleManager
     {
         $toAdd = $decision->workersToAdd();
 
+        $this->verbose("  ⬆️  Scaling UP: spawning {$toAdd} worker(s)", 'info');
+
         $workers = $this->spawner->spawn(
             $decision->connection,
             $decision->queue,
             $toAdd
         );
+
+        foreach ($workers as $worker) {
+            $this->verbose("     ✓ Worker spawned: PID {$worker->pid()}", 'info');
+        }
 
         $this->pool->addMany($workers);
 
@@ -207,6 +259,8 @@ final class AutoscaleManager
     {
         $toRemove = $decision->workersToRemove();
 
+        $this->verbose("  ⬇️  Scaling DOWN: terminating {$toRemove} worker(s)", 'info');
+
         $workers = $this->pool->remove(
             $decision->connection,
             $decision->queue,
@@ -214,6 +268,7 @@ final class AutoscaleManager
         );
 
         foreach ($workers as $worker) {
+            $this->verbose("     ✓ Terminating worker: PID {$worker->pid()}", 'info');
             $this->terminator->terminate($worker);
         }
 
@@ -243,8 +298,14 @@ final class AutoscaleManager
     {
         $dead = $this->pool->getDeadWorkers();
 
+        if (count($dead) > 0) {
+            $this->verbose("🔧 Cleaning up ".count($dead).' dead worker(s)', 'warn');
+        }
+
         foreach ($dead as $worker) {
             $this->pool->removeWorker($worker);
+
+            $this->verbose("   💀 Removed dead worker: PID {$worker->pid()}", 'warn');
 
             Log::channel(AutoscaleConfiguration::logChannel())->warning(
                 'Removed dead worker',
@@ -255,13 +316,21 @@ final class AutoscaleManager
 
     private function shutdown(): void
     {
+        $workerCount = count($this->pool->all());
+
+        $this->verbose("🛑 Shutting down autoscale manager", 'info');
+        $this->verbose("   Terminating {$workerCount} worker(s)...", 'info');
+
         Log::channel(AutoscaleConfiguration::logChannel())->info(
             'Shutting down autoscale manager, terminating all workers'
         );
 
         foreach ($this->pool->all() as $worker) {
+            $this->verbose("   ✓ Terminating worker: PID {$worker->pid()}", 'info');
             $this->terminator->terminate($worker);
         }
+
+        $this->verbose("✓ Shutdown complete", 'info');
     }
 
     private function inCooldown(string $key, int $cooldownSeconds): bool
