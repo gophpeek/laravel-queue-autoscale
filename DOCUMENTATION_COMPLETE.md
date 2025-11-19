@@ -96,11 +96,16 @@ Coverage: >80%
 - ✅ Trend prediction
 - ✅ Backlog drain (SLA protection)
 - ✅ Resource constraint handling
+- ✅ Integration with `laravel-queue-metrics` for queue discovery and metrics
 - ✅ Custom strategies support
 - ✅ Scaling policies
 - ✅ Laravel events integration
 - ✅ Worker pool management
 - ✅ Process lifecycle management
+
+### ✅ Package Separation of Concerns
+- **laravel-queue-metrics** (dependency): Queue discovery, connection scanning, metrics collection, rate calculation, trend analysis
+- **laravel-queue-autoscale** (this package): Scaling algorithms, SLA decisions, worker lifecycle, resource constraints, policy execution
 
 ### ✅ Production Infrastructure
 - ✅ GitHub Actions CI/CD (PHP 8.3, Laravel 11)

@@ -14,32 +14,34 @@ The autoscaler takes the **maximum** of these three calculations to ensure SLA c
 
 ## The Evaluation Loop
 
-### 1. Discovery Phase
+### 1. Metrics Retrieval Phase
 
 Every evaluation cycle (default: 5 seconds), the autoscaler:
 
 ```
-1. Discovers all active queues
-   ├─ Scans all configured queue connections (redis, database, sqs, etc.)
-   ├─ Identifies queues with pending jobs OR active workers
-   └─ Loads per-queue configuration (or uses defaults)
+1. Retrieves all queues and metrics from laravel-queue-metrics
+   └─ Single call: QueueMetrics::getAllQueuesWithMetrics()
 
-2. Gathers metrics for each queue
+2. Receives comprehensive queue data
+   ├─ Queue connection and name
    ├─ Current worker count
    ├─ Processing rate (jobs/second)
-   ├─ Pending job count
+   ├─ Pending job count (backlog depth)
    ├─ Oldest job age
-   └─ Trend data (historical rates)
+   ├─ Trend data (historical rates and forecasts)
+   └─ Processing time statistics
+
+3. Loads per-queue configuration
+   └─ SLA targets, min/max workers, cooldown periods
 ```
 
-**Why auto-discovery?**
-- No configuration needed for new queues
-- Discovers "forgotten" queues automatically
-- Scales down to zero workers when queues become idle
+**Package Separation:**
+- **laravel-queue-metrics** does: Queue discovery, connection scanning, metrics collection
+- **laravel-queue-autoscale** does: Consumes metrics, applies algorithms, manages workers
 
 ### 2. Calculation Phase
 
-For each discovered queue, the autoscaler calculates three target worker counts:
+For each queue received from the metrics package, the autoscaler calculates three target worker counts:
 
 #### A. Little's Law (Steady State)
 

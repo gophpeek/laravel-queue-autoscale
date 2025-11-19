@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Backlog drain calculations for SLA breach prevention
 - SLA/SLO-based optimization (define max pickup time instead of worker counts)
 - Resource-aware scaling respecting CPU and memory limits
-- Auto-discovery of active queues across all connections
+- Integration with `laravel-queue-metrics` for queue discovery and metrics collection
 - Graceful worker lifecycle management (spawn, monitor, terminate)
 - Event broadcasting (ScalingDecisionMade, WorkersScaled, SlaBreachPredicted)
 - Extension points:

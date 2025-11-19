@@ -16,7 +16,7 @@ Laravel Queue Autoscale is a smart queue worker manager that automatically scale
 - 🔬 **Queueing Theory Foundation** - Little's Law (L = λW) for steady-state calculations
 - ⚡ **SLA Breach Prevention** - Aggressive backlog drain when approaching SLA violations
 - 🖥️ **Resource-Aware** - Respects CPU and memory limits from system metrics
-- 🔄 **Auto-Discovery** - Automatically finds all active queues including forgotten ones
+- 🔄 **Metrics-Driven** - Uses `laravel-queue-metrics` for queue discovery and all metrics
 - 🎛️ **Extensible** - Custom scaling strategies and policies via interfaces
 - 📊 **Event Broadcasting** - React to scaling decisions, SLA predictions, worker changes
 - 🛡️ **Graceful Shutdown** - SIGTERM → SIGKILL worker termination
@@ -81,9 +81,9 @@ php artisan queue:autoscale
 ```
 
 The autoscaler will:
-- Discover all active queues automatically
-- Monitor metrics from `laravel-queue-metrics`
-- Scale workers up/down to meet SLA targets
+- Receive all queues and metrics from `laravel-queue-metrics`
+- Apply scaling algorithms to meet SLA targets
+- Scale workers up/down based on calculations
 - Respect CPU/memory limits from `system-metrics`
 - Log all scaling decisions
 
@@ -384,12 +384,12 @@ tail -f storage/logs/laravel.log | grep autoscale
 
 ## Metrics Integration
 
-The autoscaler relies on `laravel-queue-metrics` for all queue data:
+**This package does NOT discover queues or collect metrics itself.** All queue discovery and metrics collection is delegated to `laravel-queue-metrics`:
 
 ```php
 use PHPeek\LaravelQueueMetrics\QueueMetrics;
 
-// Example: What the autoscaler sees
+// The ONLY source of queue data for autoscaling
 $allQueues = QueueMetrics::getAllQueuesWithMetrics();
 
 foreach ($allQueues as $queue) {
@@ -401,6 +401,22 @@ foreach ($allQueues as $queue) {
 }
 ```
 
+**Package Responsibilities:**
+
+### laravel-queue-metrics (dependency)
+- ✅ Scans all configured queue connections
+- ✅ Discovers active queues
+- ✅ Collects queue depth and age metrics
+- ✅ Calculates processing rates
+- ✅ Analyzes trends and forecasts
+
+### laravel-queue-autoscale (this package)
+- ✅ Applies scaling algorithms (Little's Law, Trend Prediction, Backlog Drain)
+- ✅ Makes SLA-based scaling decisions
+- ✅ Manages worker pool lifecycle (spawn/terminate)
+- ✅ Enforces resource constraints (CPU/memory limits)
+- ✅ Executes scaling policies and broadcasts events
+
 ## Comparison with Horizon
 
 | Feature | Laravel Horizon | Queue Autoscale |
@@ -409,7 +425,7 @@ foreach ($allQueues as $queue) {
 | **Optimization Goal** | Worker count targets | SLA/SLO targets |
 | **Algorithm** | Static configuration | Hybrid (Little's Law + Trend + Backlog) |
 | **Resource Awareness** | No | Yes (CPU/memory limits) |
-| **Auto-Discovery** | Manual queue config | Automatic |
+| **Queue Discovery** | Manual queue config | Via metrics package |
 | **Prediction** | Reactive only | Proactive trend-based |
 | **SLA Protection** | No | Yes (breach prevention) |
 | **Extensibility** | Limited | Full (strategies, policies) |

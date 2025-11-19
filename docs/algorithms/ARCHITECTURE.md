@@ -303,7 +303,52 @@ $targetWorkers = max(
 
 ## Data Flow
 
-### 1. Metrics Collection (External)
+### Package Boundary and Data Flow
+
+```
+┌────────────────────────────────────────────────────────────┐
+│        laravel-queue-metrics (Dependency Package)          │
+│                                                             │
+│  • Scans all queue connections (redis, database, sqs)      │
+│  • Discovers active queues automatically                   │
+│  • Collects queue depth and age metrics                    │
+│  • Calculates processing rates                             │
+│  • Analyzes trends and creates forecasts                   │
+│  • Aggregates all data into QueueMetricsData objects       │
+│                                                             │
+│  Public API:                                                │
+│  QueueMetrics::getAllQueuesWithMetrics()                   │
+│         ↓                                                   │
+└─────────┼──────────────────────────────────────────────────┘
+          │
+          │ Returns: Collection<QueueMetricsData>
+          │
+          ↓
+┌─────────┴──────────────────────────────────────────────────┐
+│      laravel-queue-autoscale (This Package)                │
+│                                                             │
+│  • Receives pre-calculated metrics from facade             │
+│  • Applies scaling algorithms (Little's Law, Trend,        │
+│    Backlog Drain)                                          │
+│  • Makes SLA-based scaling decisions                       │
+│  • Manages worker pool lifecycle (spawn/terminate)         │
+│  • Enforces resource constraints (CPU/memory limits)       │
+│  • Executes scaling policies and broadcasts events         │
+│                                                             │
+│  DOES NOT:                                                  │
+│  ✗ Scan queue connections                                  │
+│  ✗ Discover queues                                         │
+│  ✗ Collect queue metrics                                   │
+│  ✗ Calculate processing rates or trends                    │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Key Principle: Single Responsibility**
+- **laravel-queue-metrics**: Queue discovery and metrics collection
+- **laravel-queue-autoscale**: Scaling decisions and worker management
+
+### 1. Metrics Collection (External Package)
 
 ```
 laravel-queue-metrics (external package)
@@ -314,7 +359,7 @@ Returns: Collection<QueueMetricsData>
     {
         connection: 'redis',
         queue: 'default',
-        processingRate: 10.5,  // jobs/sec
+        processingRate: 10.5,  // jobs/sec (pre-calculated)
         activeWorkerCount: 20,
         depth: {
             pending: 150,
@@ -322,7 +367,7 @@ Returns: Collection<QueueMetricsData>
         },
         trend: {
             direction: 'up',
-            forecast: 15.0,
+            forecast: 15.0,  // (pre-calculated)
         },
     }
 ```
