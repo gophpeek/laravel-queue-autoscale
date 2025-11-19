@@ -159,7 +159,12 @@ final class AutoscaleManager
     private function evaluateQueue(string $connection, string $queue, QueueMetricsData $metrics): void
     {
         $this->verbose("Evaluating queue: {$connection}:{$queue}", 'debug');
-        $this->verbose("  Metrics: pending={$metrics->pending}, oldest_age={$metrics->oldestJobAge}s, throughput={$metrics->throughputPerMinute}/min", 'debug');
+        $this->verbose("  Metrics: pending={$metrics->pending}, oldest_age={$metrics->oldestJobAge}s, active_workers={$metrics->activeWorkers}, throughput={$metrics->throughputPerMinute}/min", 'debug');
+
+        // Warn if throughput data unavailable (needs historical data)
+        if ($metrics->throughputPerMinute === 0.0 && $metrics->activeWorkers > 0) {
+            $this->verbose("  ⚠️  Throughput=0 despite active workers - metrics package needs more historical data", 'debug');
+        }
 
         // 1. Get configuration
         $config = QueueConfiguration::fromConfig($connection, $queue);
