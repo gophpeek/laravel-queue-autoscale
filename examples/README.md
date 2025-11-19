@@ -66,6 +66,23 @@ return [
 ];
 ```
 
+### 4. Ensure Metrics Package is Configured
+
+The autoscaler requires metrics from `laravel-queue-metrics`:
+
+```bash
+# Install metrics package (if not already installed)
+composer require gophpeek/laravel-queue-metrics
+
+# Publish configuration
+php artisan vendor:publish --tag=queue-metrics-config
+
+# Configure storage backend in .env
+QUEUE_METRICS_STORAGE=redis  # or 'database'
+```
+
+**See:** [Metrics package setup guide](https://github.com/gophpeek/laravel-queue-metrics#installation)
+
 ## Available Examples
 
 ### Strategies

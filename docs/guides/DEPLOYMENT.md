@@ -29,7 +29,97 @@ php artisan vendor:publish --tag=queue-autoscale-config
 
 This creates `config/queue-autoscale.php`.
 
-### 3. Configure SLA Targets
+### 3. Install & Configure Metrics Package
+
+The autoscaler **requires** `laravel-queue-metrics` for queue discovery and metrics collection. Without proper metrics configuration, the autoscaler cannot function.
+
+#### Install Package
+
+```bash
+composer require gophpeek/laravel-queue-metrics
+```
+
+> **Note:** This package may auto-install as a dependency. Verify with `composer show gophpeek/laravel-queue-metrics`.
+
+#### Publish Configuration
+
+```bash
+php artisan vendor:publish --tag=queue-metrics-config
+```
+
+This creates `config/queue-metrics.php`.
+
+#### Configure Storage Backend
+
+Choose a storage driver for metrics data:
+
+**Option A: Redis (Recommended for Production)**
+
+Redis provides fast, in-memory metrics storage with automatic TTL cleanup:
+
+```env
+# .env
+QUEUE_METRICS_STORAGE=redis
+QUEUE_METRICS_CONNECTION=default  # Must match config/database.php redis connection
+```
+
+Ensure Redis is configured in `config/database.php`:
+
+```php
+'redis' => [
+    'default' => [
+        'host' => env('REDIS_HOST', '127.0.0.1'),
+        'password' => env('REDIS_PASSWORD'),
+        'port' => env('REDIS_PORT', 6379),
+        'database' => env('REDIS_DB', 0),
+    ],
+],
+```
+
+**Option B: Database (For Persistence)**
+
+Database storage persists metrics across restarts:
+
+```env
+# .env
+QUEUE_METRICS_STORAGE=database
+```
+
+Publish and run migrations:
+
+```bash
+php artisan vendor:publish --tag=laravel-queue-metrics-migrations
+php artisan migrate
+```
+
+**Storage Comparison:**
+
+| Feature | Redis | Database |
+|---------|-------|----------|
+| Performance | ~1-2ms overhead per job | ~5-15ms overhead per job |
+| Persistence | In-memory (lost on restart) | Persistent across restarts |
+| TTL Cleanup | Automatic | Manual/scheduled cleanup |
+| Historical Data | Limited (TTL-based) | Full retention |
+| Best For | Production autoscaling | Historical analysis & debugging |
+
+#### Verify Installation
+
+Test that metrics collection works:
+
+```bash
+php artisan tinker
+```
+
+```php
+> \PHPeek\LaravelQueueMetrics\Facades\QueueMetrics::getSystemOverview();
+# Should return object with queue metrics data
+```
+
+**📚 Resources:**
+- [Metrics Package Documentation](https://github.com/gophpeek/laravel-queue-metrics)
+- [Packagist: laravel-queue-metrics](https://packagist.org/packages/gophpeek/laravel-queue-metrics)
+
+### 4. Configure SLA Targets
 
 Edit `config/queue-autoscale.php`:
 
@@ -54,7 +144,7 @@ return [
 ];
 ```
 
-### 4. Test Locally
+### 5. Test Locally
 
 ```bash
 # Run autoscaler in foreground

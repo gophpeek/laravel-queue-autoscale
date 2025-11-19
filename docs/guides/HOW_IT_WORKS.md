@@ -377,6 +377,30 @@ From `laravel-queue-metrics` package:
 - Oldest job age
 - Trend data (historical rates)
 
+### Metrics Package Setup
+
+All metrics are collected by the `laravel-queue-metrics` package. Ensure it's properly configured:
+
+**Storage Setup:**
+
+```env
+# Redis (recommended for autoscaling)
+QUEUE_METRICS_STORAGE=redis
+QUEUE_METRICS_CONNECTION=default
+
+# OR Database (for persistent metrics)
+QUEUE_METRICS_STORAGE=database
+```
+
+**Installation:**
+
+```bash
+composer require gophpeek/laravel-queue-metrics
+php artisan vendor:publish --tag=queue-metrics-config
+```
+
+**Learn more:** [Metrics Package Documentation](https://github.com/gophpeek/laravel-queue-metrics)
+
 ## Common Questions
 
 ### Q: Why did workers scale up when queue was empty?

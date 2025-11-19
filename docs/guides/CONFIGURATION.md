@@ -3,6 +3,7 @@
 Complete reference for configuring Laravel Queue Autoscale.
 
 ## Table of Contents
+- [Prerequisites: Metrics Package Setup](#prerequisites-metrics-package-setup)
 - [Basic Configuration](#basic-configuration)
 - [Queue Configuration](#queue-configuration)
 - [Strategy Configuration](#strategy-configuration)
@@ -11,6 +12,53 @@ Complete reference for configuring Laravel Queue Autoscale.
 - [Advanced Options](#advanced-options)
 - [Environment Variables](#environment-variables)
 - [Configuration Patterns](#configuration-patterns)
+
+## Prerequisites: Metrics Package Setup
+
+Laravel Queue Autoscale depends on `laravel-queue-metrics` for all queue discovery and metrics collection. **The autoscaler cannot function without proper metrics configuration.**
+
+### Quick Setup
+
+```bash
+# Install metrics package (if not already installed)
+composer require gophpeek/laravel-queue-metrics
+
+# Publish configuration
+php artisan vendor:publish --tag=queue-metrics-config
+
+# Configure storage backend in .env
+QUEUE_METRICS_STORAGE=redis        # Fast, in-memory (recommended)
+# OR
+QUEUE_METRICS_STORAGE=database     # Persistent storage
+```
+
+### Storage Configuration
+
+**Redis (Recommended for Production):**
+
+```env
+QUEUE_METRICS_STORAGE=redis
+QUEUE_METRICS_CONNECTION=default
+```
+
+Ensure your Redis connection is configured in `config/database.php`.
+
+**Database (For Historical Persistence):**
+
+```env
+QUEUE_METRICS_STORAGE=database
+```
+
+Then publish and run migrations:
+
+```bash
+php artisan vendor:publish --tag=laravel-queue-metrics-migrations
+php artisan migrate
+```
+
+**📚 Full metrics package documentation:** [laravel-queue-metrics](https://github.com/gophpeek/laravel-queue-metrics)
+
+---
 
 ## Basic Configuration
 

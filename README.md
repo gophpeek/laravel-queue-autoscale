@@ -43,6 +43,38 @@ Publish the configuration file:
 php artisan vendor:publish --tag=queue-autoscale-config
 ```
 
+### Setup Metrics Package
+
+The autoscaler requires `laravel-queue-metrics` for queue discovery and metrics collection:
+
+```bash
+# Install metrics package (if not auto-installed via dependency)
+composer require gophpeek/laravel-queue-metrics
+
+# Publish metrics configuration
+php artisan vendor:publish --tag=queue-metrics-config
+```
+
+Configure storage backend in `.env`:
+
+```env
+# Option A: Redis (recommended - fast, in-memory)
+QUEUE_METRICS_STORAGE=redis
+QUEUE_METRICS_CONNECTION=default
+
+# Option B: Database (persistent storage)
+QUEUE_METRICS_STORAGE=database
+```
+
+If using database storage, publish and run migrations:
+
+```bash
+php artisan vendor:publish --tag=laravel-queue-metrics-migrations
+php artisan migrate
+```
+
+**📚 See [Metrics Package Documentation](https://github.com/gophpeek/laravel-queue-metrics) for advanced configuration.**
+
 ## Quick Start
 
 ### 1. Configure SLA Targets
