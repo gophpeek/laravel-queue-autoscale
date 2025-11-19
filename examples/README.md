@@ -25,10 +25,10 @@ examples/
 mkdir -p app/QueueAutoscale/{Strategies,Policies}
 
 # Copy strategy examples
-cp vendor/phpeek/laravel-queue-autoscale/examples/Strategies/*.php app/QueueAutoscale/Strategies/
+cp vendor/gophpeek/laravel-queue-autoscale/examples/Strategies/*.php app/QueueAutoscale/Strategies/
 
 # Copy policy examples
-cp vendor/phpeek/laravel-queue-autoscale/examples/Policies/*.php app/QueueAutoscale/Policies/
+cp vendor/gophpeek/laravel-queue-autoscale/examples/Policies/*.php app/QueueAutoscale/Policies/
 ```
 
 ### 2. Update Namespaces

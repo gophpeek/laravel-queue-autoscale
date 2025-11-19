@@ -18,7 +18,7 @@ Before deploying, ensure you have:
 ### 1. Install Package
 
 ```bash
-composer require phpeek/laravel-queue-autoscale
+composer require gophpeek/laravel-queue-autoscale
 ```
 
 ### 2. Publish Configuration

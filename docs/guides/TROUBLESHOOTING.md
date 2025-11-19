@@ -6,12 +6,12 @@ Common issues and solutions for Laravel Queue Autoscale.
 
 ### Package Not Found
 
-**Problem**: `composer require phpeek/laravel-queue-autoscale` fails with "Package not found"
+**Problem**: `composer require gophpeek/laravel-queue-autoscale` fails with "Package not found"
 
 **Solution**:
 ```bash
 # Ensure you're using the correct package name
-composer require phpeek/laravel-queue-autoscale
+composer require gophpeek/laravel-queue-autoscale
 
 # If developing locally, add to composer.json:
 {
@@ -31,11 +31,11 @@ composer require phpeek/laravel-queue-autoscale
 **Solution**:
 ```bash
 # Update to latest versions
-composer update phpeek/laravel-queue-metrics phpeek/system-metrics
+composer update gophpeek/laravel-queue-metrics gophpeek/system-metrics
 
 # Check minimum versions
-composer show phpeek/laravel-queue-metrics  # Should be ^0.0.1
-composer show phpeek/system-metrics          # Should be ^1.2
+composer show gophpeek/laravel-queue-metrics  # Should be ^0.0.1
+composer show gophpeek/system-metrics          # Should be ^1.2
 ```
 
 ## Configuration Issues
@@ -53,7 +53,7 @@ php artisan config:clear
 php artisan vendor:publish --provider="PHPeek\LaravelQueueAutoscale\LaravelQueueAutoscaleServiceProvider"
 
 # Manual alternative: copy file
-cp vendor/phpeek/laravel-queue-autoscale/config/queue-autoscale.php config/
+cp vendor/gophpeek/laravel-queue-autoscale/config/queue-autoscale.php config/
 ```
 
 ### Strategy Class Not Found

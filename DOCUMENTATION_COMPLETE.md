@@ -132,8 +132,8 @@ Coverage: >80%
 - PHP: ^8.3
 - Laravel: ^11.0 || ^12.0
 - Dependencies:
-  - phpeek/laravel-queue-metrics: ^0.0.1
-  - phpeek/system-metrics: ^1.2
+  - gophpeek/laravel-queue-metrics: ^1.0.0
+  - gophpeek/system-metrics: ^1.2
   - symfony/process: ^7.0
 
 ### Architecture

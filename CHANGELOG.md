@@ -39,10 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Issue and PR templates for contributions
 
 ### Dependencies
-- PHP 8.2+
+- PHP 8.3+
 - Laravel 11.0+
-- phpeek/laravel-queue-metrics ^0.0.1
-- phpeek/system-metrics ^1.2
+- gophpeek/laravel-queue-metrics ^1.0.0
+- gophpeek/system-metrics ^1.2
 - Symfony Process component
 
 ### Security

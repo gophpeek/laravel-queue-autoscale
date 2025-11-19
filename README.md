@@ -1,9 +1,9 @@
 # Laravel Queue Autoscale
 
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/phpeek/laravel-queue-autoscale.svg?style=flat-square)](https://packagist.org/packages/phpeek/laravel-queue-autoscale)
-[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/phpeek/laravel-queue-autoscale/tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/phpeek/laravel-queue-autoscale/actions?query=workflow%3Atests+branch%3Amain)
-[![GitHub Code Quality Action Status](https://img.shields.io/github/actions/workflow/status/phpeek/laravel-queue-autoscale/code-quality.yml?branch=main&label=code%20quality&style=flat-square)](https://github.com/phpeek/laravel-queue-autoscale/actions?query=workflow%3Acode-quality+branch%3Amain)
-[![Total Downloads](https://img.shields.io/packagist/dt/phpeek/laravel-queue-autoscale.svg?style=flat-square)](https://packagist.org/packages/phpeek/laravel-queue-autoscale)
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/gophpeek/laravel-queue-autoscale.svg?style=flat-square)](https://packagist.org/packages/gophpeek/laravel-queue-autoscale)
+[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/gophpeek/laravel-queue-autoscale/tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/gophpeek/laravel-queue-autoscale/actions?query=workflow%3Atests+branch%3Amain)
+[![GitHub Code Quality Action Status](https://img.shields.io/github/actions/workflow/status/gophpeek/laravel-queue-autoscale/code-quality.yml?branch=main&label=code%20quality&style=flat-square)](https://github.com/gophpeek/laravel-queue-autoscale/actions?query=workflow%3Acode-quality+branch%3Amain)
+[![Total Downloads](https://img.shields.io/packagist/dt/gophpeek/laravel-queue-autoscale.svg?style=flat-square)](https://packagist.org/packages/gophpeek/laravel-queue-autoscale)
 
 **Intelligent, predictive autoscaling for Laravel queues with SLA/SLO-based optimization.**
 
@@ -24,17 +24,17 @@ Laravel Queue Autoscale is a smart queue worker manager that automatically scale
 
 ## Requirements
 
-- PHP 8.2+
+- PHP 8.3+
 - Laravel 11.0+
-- `phpeek/laravel-queue-metrics` ^0.0.1
-- `phpeek/system-metrics` ^1.2
+- `gophpeek/laravel-queue-metrics` ^1.0.0
+- `gophpeek/system-metrics` ^1.2
 
 ## Installation
 
 Install via Composer:
 
 ```bash
-composer require phpeek/laravel-queue-autoscale
+composer require gophpeek/laravel-queue-autoscale
 ```
 
 Publish the configuration file:

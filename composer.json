@@ -1,5 +1,5 @@
 {
-    "name": "phpeek/laravel-queue-autoscale",
+    "name": "gophpeek/laravel-queue-autoscale",
     "description": "Intelligent, predictive autoscaling for Laravel queues with SLA/SLO-based optimization",
     "keywords": [
         "PHPeek",
@@ -13,7 +13,7 @@
         "predictive",
         "little's law"
     ],
-    "homepage": "https://github.com/phpeek/laravel-queue-autoscale",
+    "homepage": "https://github.com/gophpeek/laravel-queue-autoscale",
     "license": "MIT",
     "authors": [
         {

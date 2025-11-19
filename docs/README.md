@@ -100,9 +100,9 @@ Real-world code examples and configuration patterns.
 ## 🆘 Getting Help
 
 - **Troubleshooting**: See [Troubleshooting Guide](guides/TROUBLESHOOTING.md)
-- **Issues**: [GitHub Issues](https://github.com/phpeek/laravel-queue-autoscale/issues)
+- **Issues**: [GitHub Issues](https://github.com/gophpeek/laravel-queue-autoscale/issues)
 - **Security**: See [Security Policy](guides/SECURITY.md)
-- **Discussions**: [GitHub Discussions](https://github.com/phpeek/laravel-queue-autoscale/discussions)
+- **Discussions**: [GitHub Discussions](https://github.com/gophpeek/laravel-queue-autoscale/discussions)
 
 ## 📝 Contributing to Documentation
 
