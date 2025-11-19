@@ -86,13 +86,44 @@ final class AutoscaleManager
     private function evaluateAndScale(): void
     {
         // Get ALL queues with metrics from laravel-queue-metrics
+        // Returns: ['redis:default' => [...metrics array...], ...]
         $allQueues = QueueMetrics::getAllQueuesWithMetrics();
 
-        foreach ($allQueues as $connection => $queues) {
-            foreach ($queues as $queueName => $metrics) {
-                $this->evaluateQueue($connection, $queueName, $metrics);
-            }
+        foreach ($allQueues as $queueKey => $metricsArray) {
+            // Map field names from API response to DTO format
+            $mappedData = $this->mapMetricsFields($metricsArray);
+
+            // Convert array to QueueMetricsData DTO
+            $metrics = QueueMetricsData::fromArray($mappedData);
+
+            // Extract connection and queue from the DTO
+            $this->evaluateQueue($metrics->connection, $metrics->queue, $metrics);
         }
+    }
+
+    /**
+     * Map field names from getAllQueuesWithMetrics() to QueueMetricsData::fromArray() format
+     */
+    private function mapMetricsFields(array $data): array
+    {
+        return [
+            'connection' => $data['connection'] ?? 'default',
+            'queue' => $data['queue'] ?? 'default',
+            'depth' => $data['depth'] ?? 0,
+            'pending' => $data['pending'] ?? 0,
+            'scheduled' => $data['scheduled'] ?? 0,
+            'reserved' => $data['reserved'] ?? 0,
+            'oldest_job_age' => (int) ($data['oldest_job_age_seconds'] ?? 0),
+            'age_status' => $data['oldest_job_age_status'] ?? 'normal',
+            'throughput_per_minute' => $data['throughput_per_minute'] ?? 0.0,
+            'avg_duration' => ($data['avg_duration_ms'] ?? 0.0) / 1000.0, // Convert ms to seconds
+            'failure_rate' => $data['failure_rate'] ?? 0.0,
+            'utilization_rate' => $data['utilization_rate'] ?? 0.0,
+            'active_workers' => $data['active_workers'] ?? 0,
+            'driver' => $data['driver'] ?? 'unknown',
+            'health' => $data['health'] ?? [],
+            'calculated_at' => $data['timestamp'] ?? now()->toIso8601String(),
+        ];
     }
 
     private function evaluateQueue(string $connection, string $queue, QueueMetricsData $metrics): void
