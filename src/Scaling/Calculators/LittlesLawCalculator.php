@@ -15,8 +15,8 @@ final readonly class LittlesLawCalculator
      *
      * Rearranged for workers: Workers = λ × W
      *
-     * @param float $arrivalRate Jobs per second
-     * @param float $avgProcessingTime Average seconds per job
+     * @param  float  $arrivalRate  Jobs per second
+     * @param  float  $avgProcessingTime  Average seconds per job
      * @return float Required workers (fractional, caller should ceil())
      */
     public function calculate(float $arrivalRate, float $avgProcessingTime): float

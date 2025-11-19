@@ -12,7 +12,7 @@ final readonly class WorkerTerminator
     /**
      * Terminate a worker process gracefully (SIGTERM then SIGKILL)
      *
-     * @param WorkerProcess $worker Worker to terminate
+     * @param  WorkerProcess  $worker  Worker to terminate
      * @return bool True if graceful shutdown, false if forced
      */
     public function terminate(WorkerProcess $worker): bool

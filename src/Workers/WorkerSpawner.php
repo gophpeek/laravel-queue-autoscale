@@ -14,9 +14,9 @@ final readonly class WorkerSpawner
     /**
      * Spawn N queue:work worker processes
      *
-     * @param string $connection Queue connection name
-     * @param string $queue Queue name
-     * @param int $count Number of workers to spawn
+     * @param  string  $connection  Queue connection name
+     * @param  string  $queue  Queue name
+     * @param  int  $count  Number of workers to spawn
      * @return Collection<int, WorkerProcess> Spawned workers
      */
     public function spawn(string $connection, string $queue, int $count): Collection
@@ -29,10 +29,10 @@ final readonly class WorkerSpawner
                 base_path('artisan'),
                 'queue:work',
                 $connection,
-                '--queue=' . $queue,
-                '--tries=' . AutoscaleConfiguration::workerTries(),
-                '--max-time=' . AutoscaleConfiguration::workerTimeoutSeconds(),
-                '--sleep=' . AutoscaleConfiguration::workerSleepSeconds(),
+                '--queue='.$queue,
+                '--tries='.AutoscaleConfiguration::workerTries(),
+                '--max-time='.AutoscaleConfiguration::workerTimeoutSeconds(),
+                '--sleep='.AutoscaleConfiguration::workerSleepSeconds(),
             ]);
 
             $process->start();

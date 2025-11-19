@@ -5,13 +5,13 @@ declare(strict_types=1);
 use PHPeek\LaravelQueueAutoscale\Scaling\Calculators\TrendPredictor;
 
 it('returns current rate when trend is null', function () {
-    $predictor = new TrendPredictor();
+    $predictor = new TrendPredictor;
 
     expect($predictor->predictArrivalRate(10.0, null, 60))->toBe(10.0);
 });
 
 it('returns current rate when trend is stable', function () {
-    $predictor = new TrendPredictor();
+    $predictor = new TrendPredictor;
 
     $trend = (object) ['direction' => 'stable'];
 
@@ -19,7 +19,7 @@ it('returns current rate when trend is stable', function () {
 });
 
 it('increases rate when trend is up with forecast', function () {
-    $predictor = new TrendPredictor();
+    $predictor = new TrendPredictor;
 
     $trend = (object) [
         'direction' => 'up',
@@ -30,7 +30,7 @@ it('increases rate when trend is up with forecast', function () {
 });
 
 it('uses 20% increase when trend is up without forecast', function () {
-    $predictor = new TrendPredictor();
+    $predictor = new TrendPredictor;
 
     $trend = (object) ['direction' => 'up'];
 
@@ -38,7 +38,7 @@ it('uses 20% increase when trend is up without forecast', function () {
 });
 
 it('decreases rate by 20% when trend is down', function () {
-    $predictor = new TrendPredictor();
+    $predictor = new TrendPredictor;
 
     $trend = (object) ['direction' => 'down'];
 

@@ -24,8 +24,8 @@ class LaravelQueueAutoscaleCommand extends Command
         }
 
         $this->info('🚀 Starting Queue Autoscale Manager');
-        $this->info('   Manager ID: ' . AutoscaleConfiguration::managerId());
-        $this->info('   Evaluation interval: ' . $this->option('interval') . 's');
+        $this->info('   Manager ID: '.AutoscaleConfiguration::managerId());
+        $this->info('   Evaluation interval: '.$this->option('interval').'s');
         $this->line('');
 
         $manager->configure((int) $this->option('interval'));

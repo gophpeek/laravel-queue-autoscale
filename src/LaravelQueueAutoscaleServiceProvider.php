@@ -24,7 +24,7 @@ class LaravelQueueAutoscaleServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(
-            __DIR__ . '/../config/queue-autoscale.php',
+            __DIR__.'/../config/queue-autoscale.php',
             'queue-autoscale'
         );
 
@@ -60,7 +60,7 @@ class LaravelQueueAutoscaleServiceProvider extends ServiceProvider
     {
         if ($this->app->runningInConsole()) {
             $this->publishes([
-                __DIR__ . '/../config/queue-autoscale.php' => config_path('queue-autoscale.php'),
+                __DIR__.'/../config/queue-autoscale.php' => config_path('queue-autoscale.php'),
             ], 'queue-autoscale-config');
 
             $this->commands([

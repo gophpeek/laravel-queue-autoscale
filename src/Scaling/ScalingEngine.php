@@ -18,9 +18,9 @@ final readonly class ScalingEngine
     /**
      * Evaluate scaling decision for a queue
      *
-     * @param object $metrics QueueMetricsData from laravel-queue-metrics
-     * @param QueueConfiguration $config Queue SLA configuration
-     * @param int $currentWorkers Current worker count for this queue
+     * @param  object  $metrics  QueueMetricsData from laravel-queue-metrics
+     * @param  QueueConfiguration  $config  Queue SLA configuration
+     * @param  int  $currentWorkers  Current worker count for this queue
      * @return ScalingDecision Scaling decision with target workers
      */
     public function evaluate(

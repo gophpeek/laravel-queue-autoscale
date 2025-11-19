@@ -11,8 +11,8 @@ interface ScalingStrategyContract
     /**
      * Calculate target number of workers for a queue
      *
-     * @param object $metrics QueueMetricsData from laravel-queue-metrics
-     * @param QueueConfiguration $config Queue SLA configuration
+     * @param  object  $metrics  QueueMetricsData from laravel-queue-metrics
+     * @param  QueueConfiguration  $config  Queue SLA configuration
      * @return int Target worker count
      */
     public function calculateTargetWorkers(object $metrics, QueueConfiguration $config): int;

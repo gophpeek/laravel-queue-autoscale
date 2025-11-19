@@ -14,7 +14,6 @@ use Symfony\Component\Process\Process;
  * WorkerSpawner and WorkerTerminator require process spawning which is
  * integration-tested rather than unit-tested.
  */
-
 describe('WorkerProcess', function () {
     beforeEach(function () {
         // Create a simple process for testing (non-running)
@@ -122,7 +121,7 @@ describe('WorkerProcess', function () {
 
 describe('WorkerPool', function () {
     beforeEach(function () {
-        $this->pool = new WorkerPool();
+        $this->pool = new WorkerPool;
 
         // Helper to create worker with specific state
         $this->createWorker = function (string $connection, string $queue, bool $running = true): WorkerProcess {

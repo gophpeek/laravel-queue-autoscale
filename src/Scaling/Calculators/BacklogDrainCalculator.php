@@ -11,11 +11,11 @@ final readonly class BacklogDrainCalculator
      *
      * Acts proactively at breach threshold (e.g., 80% of SLA time)
      *
-     * @param int $backlog Number of pending jobs
-     * @param int $oldestJobAge Age of oldest job in seconds
-     * @param int $slaTarget Max pickup time SLA in seconds
-     * @param float $avgJobTime Average processing time per job in seconds
-     * @param float $breachThreshold Threshold (0-1) to trigger action
+     * @param  int  $backlog  Number of pending jobs
+     * @param  int  $oldestJobAge  Age of oldest job in seconds
+     * @param  int  $slaTarget  Max pickup time SLA in seconds
+     * @param  float  $avgJobTime  Average processing time per job in seconds
+     * @param  float  $breachThreshold  Threshold (0-1) to trigger action
      * @return float Required workers (fractional, caller should ceil())
      */
     public function calculateRequiredWorkers(

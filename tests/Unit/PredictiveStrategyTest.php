@@ -9,9 +9,9 @@ use PHPeek\LaravelQueueAutoscale\Scaling\Calculators\TrendPredictor;
 use PHPeek\LaravelQueueAutoscale\Scaling\Strategies\PredictiveStrategy;
 
 beforeEach(function () {
-    $this->littles = new LittlesLawCalculator();
-    $this->trends = new TrendPredictor();
-    $this->backlog = new BacklogDrainCalculator();
+    $this->littles = new LittlesLawCalculator;
+    $this->trends = new TrendPredictor;
+    $this->backlog = new BacklogDrainCalculator;
     $this->strategy = new PredictiveStrategy($this->littles, $this->trends, $this->backlog);
 
     $this->config = new QueueConfiguration(

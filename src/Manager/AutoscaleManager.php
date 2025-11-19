@@ -22,7 +22,9 @@ use PHPeek\LaravelQueueMetrics\Facades\QueueMetrics;
 final class AutoscaleManager
 {
     private WorkerPool $pool;
+
     private int $interval = 5;
+
     private array $lastScaleTime = [];
 
     public function __construct(
@@ -32,7 +34,7 @@ final class AutoscaleManager
         private readonly PolicyExecutor $policies,
         private readonly SignalHandler $signals,
     ) {
-        $this->pool = new WorkerPool();
+        $this->pool = new WorkerPool;
     }
 
     public function configure(int $interval): void

@@ -5,7 +5,7 @@ declare(strict_types=1);
 use PHPeek\LaravelQueueAutoscale\Scaling\Calculators\BacklogDrainCalculator;
 
 it('returns zero for empty backlog', function () {
-    $calculator = new BacklogDrainCalculator();
+    $calculator = new BacklogDrainCalculator;
 
     expect($calculator->calculateRequiredWorkers(
         backlog: 0,
@@ -17,7 +17,7 @@ it('returns zero for empty backlog', function () {
 });
 
 it('returns zero for zero average job time', function () {
-    $calculator = new BacklogDrainCalculator();
+    $calculator = new BacklogDrainCalculator;
 
     expect($calculator->calculateRequiredWorkers(
         backlog: 100,
@@ -29,7 +29,7 @@ it('returns zero for zero average job time', function () {
 });
 
 it('returns zero for negative average job time', function () {
-    $calculator = new BacklogDrainCalculator();
+    $calculator = new BacklogDrainCalculator;
 
     expect($calculator->calculateRequiredWorkers(
         backlog: 100,
@@ -41,7 +41,7 @@ it('returns zero for negative average job time', function () {
 });
 
 it('returns zero when oldest job is below action threshold', function () {
-    $calculator = new BacklogDrainCalculator();
+    $calculator = new BacklogDrainCalculator;
 
     // SLA target: 30s, breach threshold: 0.8 = 24s action threshold
     // Oldest job: 20s (below 24s threshold)
@@ -55,7 +55,7 @@ it('returns zero when oldest job is below action threshold', function () {
 });
 
 it('calculates workers when at action threshold', function () {
-    $calculator = new BacklogDrainCalculator();
+    $calculator = new BacklogDrainCalculator;
 
     // SLA target: 30s, breach threshold: 0.8 = 24s action threshold
     // Oldest job: 24s (at threshold)
@@ -72,7 +72,7 @@ it('calculates workers when at action threshold', function () {
 });
 
 it('calculates workers when above action threshold', function () {
-    $calculator = new BacklogDrainCalculator();
+    $calculator = new BacklogDrainCalculator;
 
     // SLA target: 30s, breach threshold: 0.8 = 24s action threshold
     // Oldest job: 28s (above threshold)
@@ -89,7 +89,7 @@ it('calculates workers when above action threshold', function () {
 });
 
 it('scales aggressively when SLA is already breached', function () {
-    $calculator = new BacklogDrainCalculator();
+    $calculator = new BacklogDrainCalculator;
 
     // SLA target: 30s, oldest job: 35s (breached by 5s)
     // Aggressive: ceil(100 / 2.0) = 50
@@ -103,7 +103,7 @@ it('scales aggressively when SLA is already breached', function () {
 });
 
 it('scales aggressively when SLA is exactly at breach point', function () {
-    $calculator = new BacklogDrainCalculator();
+    $calculator = new BacklogDrainCalculator;
 
     // SLA target: 30s, oldest job: 30s (exactly at breach)
     // Time until breach: 0s
@@ -118,7 +118,7 @@ it('scales aggressively when SLA is exactly at breach point', function () {
 });
 
 it('handles fast jobs requiring fewer workers', function () {
-    $calculator = new BacklogDrainCalculator();
+    $calculator = new BacklogDrainCalculator;
 
     // SLA target: 60s, oldest job: 50s (above 80% threshold of 48s)
     // Time until breach: 60 - 50 = 10s
@@ -135,7 +135,7 @@ it('handles fast jobs requiring fewer workers', function () {
 });
 
 it('handles slow jobs requiring more workers', function () {
-    $calculator = new BacklogDrainCalculator();
+    $calculator = new BacklogDrainCalculator;
 
     // SLA target: 30s, oldest job: 25s (above 80% threshold of 24s)
     // Time until breach: 30 - 25 = 5s
@@ -152,7 +152,7 @@ it('handles slow jobs requiring more workers', function () {
 });
 
 it('handles different breach thresholds', function () {
-    $calculator = new BacklogDrainCalculator();
+    $calculator = new BacklogDrainCalculator;
 
     // SLA target: 100s, breach threshold: 0.5 = 50s action threshold
     // Oldest job: 60s (above 50s threshold)
@@ -169,7 +169,7 @@ it('handles different breach thresholds', function () {
 });
 
 it('handles small backlog efficiently', function () {
-    $calculator = new BacklogDrainCalculator();
+    $calculator = new BacklogDrainCalculator;
 
     // SLA target: 30s, oldest job: 25s (above 80% threshold)
     // Time until breach: 5s
@@ -185,7 +185,7 @@ it('handles small backlog efficiently', function () {
 });
 
 it('protects against division by very small avgJobTime in breach scenario', function () {
-    $calculator = new BacklogDrainCalculator();
+    $calculator = new BacklogDrainCalculator;
 
     // Already breached, very small avgJobTime
     // Uses max(avgJobTime, 0.1) protection

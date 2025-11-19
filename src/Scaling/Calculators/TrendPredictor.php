@@ -14,9 +14,9 @@ final readonly class TrendPredictor
      * - If trend is "down", reduce by trend factor
      * - If trend is "stable", use current rate
      *
-     * @param float $currentRate Current jobs per second
-     * @param object|null $trend Trend object from QueueMetricsData (direction, forecast)
-     * @param int $horizonSeconds How far ahead to predict (unused in simple model)
+     * @param  float  $currentRate  Current jobs per second
+     * @param  object|null  $trend  Trend object from QueueMetricsData (direction, forecast)
+     * @param  int  $horizonSeconds  How far ahead to predict (unused in simple model)
      * @return float Predicted arrival rate
      */
     public function predictArrivalRate(

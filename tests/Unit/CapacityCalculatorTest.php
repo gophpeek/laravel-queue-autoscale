@@ -9,9 +9,8 @@ use PHPeek\LaravelQueueAutoscale\Scaling\Calculators\CapacityCalculator;
  * These tests verify the calculator works correctly with real system metrics.
  * For full isolation, SystemMetrics would need to be injectable/mockable.
  */
-
 it('returns non-negative integer for max workers', function () {
-    $calculator = new CapacityCalculator();
+    $calculator = new CapacityCalculator;
 
     $maxWorkers = $calculator->calculateMaxWorkers();
 
@@ -20,7 +19,7 @@ it('returns non-negative integer for max workers', function () {
 });
 
 it('returns conservative fallback when system metrics fail', function () {
-    $calculator = new CapacityCalculator();
+    $calculator = new CapacityCalculator;
 
     // We can't easily force SystemMetrics::limits() to fail in tests,
     // but we verify the method doesn't throw exceptions
@@ -31,7 +30,7 @@ it('returns conservative fallback when system metrics fail', function () {
 });
 
 it('calculates capacity based on current system state', function () {
-    $calculator = new CapacityCalculator();
+    $calculator = new CapacityCalculator;
 
     // First calculation
     $workers1 = $calculator->calculateMaxWorkers();
@@ -46,7 +45,7 @@ it('calculates capacity based on current system state', function () {
 });
 
 it('respects system resource constraints', function () {
-    $calculator = new CapacityCalculator();
+    $calculator = new CapacityCalculator;
 
     $maxWorkers = $calculator->calculateMaxWorkers();
 
