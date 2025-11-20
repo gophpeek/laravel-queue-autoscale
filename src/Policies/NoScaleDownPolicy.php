@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PHPeek\LaravelQueueAutoscale\Policies;
 
 use PHPeek\LaravelQueueAutoscale\Contracts\ScalingPolicy;
+use PHPeek\LaravelQueueAutoscale\Scaling\Calculators\CapacityCalculator;
 use PHPeek\LaravelQueueAutoscale\Scaling\ScalingDecision;
 
 /**
@@ -12,6 +13,10 @@ use PHPeek\LaravelQueueAutoscale\Scaling\ScalingDecision;
  *
  * Use Case: Critical/mission-critical workloads where maintaining capacity is more important than cost.
  * This policy ensures workers are never removed, keeping the queue always ready to process jobs.
+ *
+ * Exception: Allows scale-down when system resources (CPU/memory) are constrained to prevent
+ * system instability. Resource constraints are detected by checking if the current worker count
+ * exceeds the maximum capacity allowed by available system resources.
  *
  * Example:
  * - Payment processing systems
@@ -25,23 +30,35 @@ use PHPeek\LaravelQueueAutoscale\Scaling\ScalingDecision;
  */
 final readonly class NoScaleDownPolicy implements ScalingPolicy
 {
+    public function __construct(
+        private CapacityCalculator $capacity,
+    ) {}
+
     public function beforeScaling(ScalingDecision $decision): ?ScalingDecision
     {
-        // If decision is to scale down, prevent it by setting target to current
-        if ($decision->shouldScaleDown()) {
-            return new ScalingDecision(
-                connection: $decision->connection,
-                queue: $decision->queue,
-                currentWorkers: $decision->currentWorkers,
-                targetWorkers: $decision->currentWorkers, // Prevent scale-down
-                reason: 'NoScaleDownPolicy prevented scale-down - maintaining capacity',
-                predictedPickupTime: $decision->predictedPickupTime,
-                slaTarget: $decision->slaTarget,
-            );
+        // If not scaling down, allow the decision to pass through
+        if (! $decision->shouldScaleDown()) {
+            return null;
         }
 
-        // Allow scale-up and hold decisions to pass through
-        return null;
+        // Check if scale-down is forced by resource constraints
+        // If current workers exceed system capacity, we must scale down for stability
+        $maxCapacity = $this->capacity->calculateMaxWorkers();
+        if ($decision->currentWorkers > $maxCapacity) {
+            // Let resource-constrained scale-down proceed to maintain system stability
+            return null;
+        }
+
+        // Prevent normal scale-down (maintain capacity for critical workloads)
+        return new ScalingDecision(
+            connection: $decision->connection,
+            queue: $decision->queue,
+            currentWorkers: $decision->currentWorkers,
+            targetWorkers: $decision->currentWorkers, // Prevent scale-down
+            reason: 'NoScaleDownPolicy prevented scale-down - maintaining capacity',
+            predictedPickupTime: $decision->predictedPickupTime,
+            slaTarget: $decision->slaTarget,
+        );
     }
 
     public function afterScaling(ScalingDecision $decision): void
