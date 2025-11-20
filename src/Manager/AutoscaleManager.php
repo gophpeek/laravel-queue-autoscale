@@ -9,7 +9,9 @@ use Illuminate\Support\Facades\Log;
 use PHPeek\LaravelQueueAutoscale\Configuration\AutoscaleConfiguration;
 use PHPeek\LaravelQueueAutoscale\Configuration\QueueConfiguration;
 use PHPeek\LaravelQueueAutoscale\Events\ScalingDecisionMade;
+use PHPeek\LaravelQueueAutoscale\Events\SlaBreached;
 use PHPeek\LaravelQueueAutoscale\Events\SlaBreachPredicted;
+use PHPeek\LaravelQueueAutoscale\Events\SlaRecovered;
 use PHPeek\LaravelQueueAutoscale\Events\WorkersScaled;
 use PHPeek\LaravelQueueAutoscale\Policies\PolicyExecutor;
 use PHPeek\LaravelQueueAutoscale\Scaling\ScalingDecision;
@@ -31,6 +33,11 @@ final class AutoscaleManager
      * @var array<string, \Illuminate\Support\Carbon>
      */
     private array $lastScaleTime = [];
+
+    /**
+     * @var array<string, bool>
+     */
+    private array $breachState = [];
 
     private ?OutputInterface $output = null;
 
@@ -240,6 +247,39 @@ final class AutoscaleManager
         if ($finalDecision->isSlaBreachRisk()) {
             $this->verbose('  ⚠️  SLA BREACH RISK DETECTED!', 'warn');
             event(new SlaBreachPredicted($finalDecision));
+        }
+
+        // Track SLA breach state and fire breach/recovery events
+        $wasBreaching = $this->breachState[$key] ?? false;
+
+        if ($isBreaching && ! $wasBreaching) {
+            // Entering breach state - fire SlaBreached
+            event(new SlaBreached(
+                connection: $config->connection,
+                queue: $config->queue,
+                oldestJobAge: $metrics->oldestJobAge,
+                slaTarget: $config->maxPickupTimeSeconds,
+                pending: $metrics->pending,
+                activeWorkers: $metrics->activeWorkers,
+            ));
+            $this->breachState[$key] = true;
+        } elseif (! $isBreaching && $wasBreaching) {
+            // Recovering from breach - fire SlaRecovered
+            event(new SlaRecovered(
+                connection: $config->connection,
+                queue: $config->queue,
+                currentJobAge: $metrics->oldestJobAge,
+                slaTarget: $config->maxPickupTimeSeconds,
+                pending: $metrics->pending,
+                activeWorkers: $metrics->activeWorkers,
+            ));
+            $this->breachState[$key] = false;
+        } elseif ($isBreaching) {
+            // Update breach state (still breaching)
+            $this->breachState[$key] = true;
+        } else {
+            // Update breach state (not breaching)
+            $this->breachState[$key] = false;
         }
 
         // 11. Update last scale time
