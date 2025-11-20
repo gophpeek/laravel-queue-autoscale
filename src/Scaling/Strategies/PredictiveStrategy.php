@@ -163,8 +163,8 @@ final class PredictiveStrategy implements ScalingStrategyContract
         }
 
         // Time to process backlog with target workers
-        $jobsPerWorker = $calc['backlog'] / $targetWorkers;
-        $timeToProcess = $jobsPerWorker * $calc['avg_job_time'];
+        $jobsPerWorker = (float) $calc['backlog'] / (float) $targetWorkers;
+        $timeToProcess = $jobsPerWorker * (float) $calc['avg_job_time'];
 
         return $timeToProcess;
     }
