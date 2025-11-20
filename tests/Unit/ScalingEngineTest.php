@@ -6,14 +6,12 @@ use PHPeek\LaravelQueueAutoscale\Configuration\QueueConfiguration;
 use PHPeek\LaravelQueueAutoscale\Scaling\Calculators\BacklogDrainCalculator;
 use PHPeek\LaravelQueueAutoscale\Scaling\Calculators\CapacityCalculator;
 use PHPeek\LaravelQueueAutoscale\Scaling\Calculators\LittlesLawCalculator;
-use PHPeek\LaravelQueueAutoscale\Scaling\Calculators\TrendPredictor;
 use PHPeek\LaravelQueueAutoscale\Scaling\ScalingEngine;
 use PHPeek\LaravelQueueAutoscale\Scaling\Strategies\PredictiveStrategy;
 
 beforeEach(function () {
     $this->strategy = new PredictiveStrategy(
         new LittlesLawCalculator,
-        new TrendPredictor,
         new BacklogDrainCalculator,
     );
     $this->capacity = new CapacityCalculator;

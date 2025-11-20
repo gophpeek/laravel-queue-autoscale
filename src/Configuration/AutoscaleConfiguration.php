@@ -96,4 +96,11 @@ final readonly class AutoscaleConfiguration
     {
         return (array) config('queue-autoscale.policies', []);
     }
+
+    public static function trendScalingPolicy(): TrendScalingPolicy
+    {
+        $policy = (string) config('queue-autoscale.prediction.trend_policy', 'moderate');
+
+        return TrendScalingPolicy::tryFrom($policy) ?? TrendScalingPolicy::MODERATE;
+    }
 }
