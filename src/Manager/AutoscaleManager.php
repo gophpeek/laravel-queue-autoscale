@@ -77,7 +77,7 @@ final class AutoscaleManager
         }
 
         $timestamp = now()->format('H:i:s');
-        $prefix = match ($level) {
+        $prefix = (string) match ($level) {
             'debug' => '<fg=gray>[DEBUG]</>',
             'info' => '<fg=cyan>[INFO]</>',
             'warn' => '<fg=yellow>[WARN]</>',
@@ -85,7 +85,7 @@ final class AutoscaleManager
             default => '[INFO]',
         };
 
-        $this->output->writeln("[$timestamp] $prefix $message");
+        $this->output->writeln("[$timestamp] {$prefix} {$message}");
     }
 
     private function isVeryVerbose(): bool
