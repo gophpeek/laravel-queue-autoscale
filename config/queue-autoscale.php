@@ -68,11 +68,18 @@ return [
     |
     | Controls how the predictive scaling algorithm behaves.
     |
+    | Trend Policy Options:
+    | - 'disabled'   - Ignore trend predictions, reactive scaling only
+    | - 'hint'       - Conservative (30% trend weight, confidence >= 0.8)
+    | - 'moderate'   - Balanced (50% trend weight, confidence >= 0.7) [DEFAULT]
+    | - 'aggressive' - Proactive (80% trend weight, confidence >= 0.5)
+    |
     */
     'prediction' => [
         'trend_window_seconds' => 300,          // 5 minutes historical window
         'forecast_horizon_seconds' => 60,       // 1 minute ahead prediction
         'breach_threshold' => 0.5,              // Act at 50% of SLA for proactive scaling
+        'trend_policy' => env('QUEUE_AUTOSCALE_TREND_POLICY', 'moderate'), // Trend scaling policy
     ],
 
     /*

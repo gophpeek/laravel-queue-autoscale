@@ -35,6 +35,11 @@ final class AutoscaleManager
     private array $lastScaleTime = [];
 
     /**
+     * @var array<string, string>
+     */
+    private array $lastScaleDirection = [];
+
+    /**
      * @var array<string, bool>
      */
     private array $breachState = [];
@@ -72,7 +77,7 @@ final class AutoscaleManager
         }
 
         $timestamp = now()->format('H:i:s');
-        $prefix = match ($level) {
+        $prefix = (string) match ($level) {
             'debug' => '<fg=gray>[DEBUG]</>',
             'info' => '<fg=cyan>[INFO]</>',
             'warn' => '<fg=yellow>[WARN]</>',
@@ -80,7 +85,16 @@ final class AutoscaleManager
             default => '[INFO]',
         };
 
-        $this->output->writeln("[$timestamp] $prefix $message");
+        $this->output->writeln("[$timestamp] {$prefix} {$message}");
+    }
+
+    private function isVeryVerbose(): bool
+    {
+        if (! $this->output) {
+            return false;
+        }
+
+        return $this->output->isVeryVerbose();
     }
 
     public function run(): int
@@ -149,6 +163,19 @@ final class AutoscaleManager
      */
     private function mapMetricsFields(array $data): array
     {
+        // Merge baseline and trends data into health array
+        // These will be passed through to HealthStats::fromArray() but ignored by it
+        // We'll access them as raw array data in the strategy
+        $healthBase = $data['health'] ?? [];
+        $healthData = array_merge(
+            is_array($healthBase) ? $healthBase : [],
+            [
+                'baseline' => $data['baseline'] ?? null,
+                'trend' => $data['trends'] ?? null,
+                'percentiles' => $data['percentiles'] ?? null,
+            ]
+        );
+
         return [
             'connection' => $data['connection'] ?? 'default',
             'queue' => $data['queue'] ?? 'default',
@@ -164,7 +191,7 @@ final class AutoscaleManager
             'utilization_rate' => $data['utilization_rate'] ?? 0.0,
             'active_workers' => $data['active_workers'] ?? 0,
             'driver' => $data['driver'] ?? 'unknown',
-            'health' => $data['health'] ?? [],
+            'health' => $healthData,
             'calculated_at' => $data['timestamp'] ?? now()->toIso8601String(),
         ];
     }
@@ -189,28 +216,31 @@ final class AutoscaleManager
         // 3. Calculate scaling decision
         $decision = $this->engine->evaluate($metrics, $config, $currentWorkers);
 
-        // 4. Check if we should bypass cooldown
+        // 4. Check for SLA breach
         $isBreaching = $metrics->oldestJobAge > 0 && $metrics->oldestJobAge >= $config->maxPickupTimeSeconds;
-        $needsScaling = $decision->shouldScaleUp() || $decision->shouldScaleDown();
 
         if ($isBreaching) {
-            $this->verbose("  🚨 SLA BREACH: oldest_age={$metrics->oldestJobAge}s >= SLA={$config->maxPickupTimeSeconds}s - BYPASSING COOLDOWN", 'error');
-        } elseif ($needsScaling) {
-            $this->verbose("  📊 Scaling recommended: current={$currentWorkers} → target={$decision->targetWorkers}", 'debug');
+            $this->verbose("  🚨 SLA BREACH: oldest_age={$metrics->oldestJobAge}s >= SLA={$config->maxPickupTimeSeconds}s", 'error');
         }
 
-        // 5. Check cooldown (bypass if breaching OR scaling is needed)
+        // 5. Anti-flapping check: prevent direction reversals within cooldown
         $key = "{$connection}:{$queue}";
-        if (! $isBreaching && ! $needsScaling && $this->inCooldown($key, $config->scaleCooldownSeconds)) {
-            $remaining = $this->getCooldownRemaining($key, $config->scaleCooldownSeconds);
-            $this->verbose("  ⏸️  In cooldown period ({$remaining}s remaining)", 'debug');
+        $currentDirection = $decision->shouldScaleUp() ? 'up' : ($decision->shouldScaleDown() ? 'down' : 'hold');
+        $lastDirection = $this->lastScaleDirection[$key] ?? null;
 
-            return;
+        // Only apply cooldown if direction is reversing (prevents flapping)
+        if ($currentDirection !== 'hold' && $lastDirection !== null && $currentDirection !== $lastDirection) {
+            if ($this->inCooldown($key, $config->scaleCooldownSeconds)) {
+                $remaining = $this->getCooldownRemaining($key, $config->scaleCooldownSeconds);
+                $this->verbose("  ⏸️  Anti-flapping: cannot reverse direction during cooldown ({$remaining}s remaining)", 'debug');
+
+                return;
+            }
         }
 
-        if (! $isBreaching && $needsScaling && $this->inCooldown($key, $config->scaleCooldownSeconds)) {
-            $remaining = $this->getCooldownRemaining($key, $config->scaleCooldownSeconds);
-            $this->verbose("  🔥 Proactive scaling needed - bypassing cooldown ({$remaining}s remaining)", 'warn');
+        // Log scaling recommendation
+        if ($decision->shouldScaleUp() || $decision->shouldScaleDown()) {
+            $this->verbose("  📊 Scaling recommended: current={$currentWorkers} → target={$decision->targetWorkers}", 'debug');
         }
 
         // 6. Display decision
@@ -219,6 +249,24 @@ final class AutoscaleManager
 
         if ($decision->predictedPickupTime !== null) {
             $this->verbose("     Predicted pickup time: {$decision->predictedPickupTime}s (SLA: {$decision->slaTarget}s)", 'info');
+        }
+
+        // 6a. Display capacity breakdown in -vvv mode
+        if ($decision->capacity !== null && $this->isVeryVerbose()) {
+            $this->verbose('     ━━━ Capacity Breakdown ━━━', 'debug');
+            foreach ($decision->capacity->getFormattedDetails() as $label => $detail) {
+                $this->verbose("     {$label}: {$detail}", 'debug');
+            }
+
+            // Explain the capacity factor
+            $factor = $decision->capacity->limitingFactor;
+            if ($factor === 'cpu' || $factor === 'memory') {
+                $this->verbose("     ⚠️  Constrained by system capacity: {$factor}", 'warn');
+            } elseif ($factor === 'config') {
+                $this->verbose('     ⚠️  Constrained by max_workers config limit', 'warn');
+            } elseif ($factor === 'strategy') {
+                $this->verbose('     ✓ Optimal worker count determined by demand analysis', 'debug');
+            }
         }
 
         // 7. Execute policies (before) - policies can modify the decision
@@ -282,9 +330,10 @@ final class AutoscaleManager
             $this->breachState[$key] = false;
         }
 
-        // 11. Update last scale time
+        // 11. Update last scale time and direction
         if (! $finalDecision->shouldHold()) {
             $this->lastScaleTime[$key] = now();
+            $this->lastScaleDirection[$key] = $currentDirection;
         }
     }
 

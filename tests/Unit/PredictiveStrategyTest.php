@@ -5,14 +5,12 @@ declare(strict_types=1);
 use PHPeek\LaravelQueueAutoscale\Configuration\QueueConfiguration;
 use PHPeek\LaravelQueueAutoscale\Scaling\Calculators\BacklogDrainCalculator;
 use PHPeek\LaravelQueueAutoscale\Scaling\Calculators\LittlesLawCalculator;
-use PHPeek\LaravelQueueAutoscale\Scaling\Calculators\TrendPredictor;
 use PHPeek\LaravelQueueAutoscale\Scaling\Strategies\PredictiveStrategy;
 
 beforeEach(function () {
     $this->littles = new LittlesLawCalculator;
-    $this->trends = new TrendPredictor;
     $this->backlog = new BacklogDrainCalculator;
-    $this->strategy = new PredictiveStrategy($this->littles, $this->trends, $this->backlog);
+    $this->strategy = new PredictiveStrategy($this->littles, $this->backlog);
 
     $this->config = new QueueConfiguration(
         connection: 'redis',
@@ -244,4 +242,104 @@ it('returns no calculation message before first run', function () {
     $reason = $this->strategy->getLastReason();
 
     expect($reason)->toBe('No calculation performed yet');
+});
+
+// Fallback throughput estimation tests
+it('uses fallback estimation when throughput is zero with active workers', function () {
+    $metrics = createMetrics([
+        'throughput_per_minute' => 0.0, // NO throughput data
+        'active_workers' => 10,
+        'pending' => 50,
+        'oldest_job_age' => 5,
+    ]);
+
+    $workers = $this->strategy->calculateTargetWorkers($metrics, $this->config);
+
+    // Should NOT return 0 workers despite zero throughput
+    // Fallback estimates from active workers' capacity
+    expect($workers)->toBeGreaterThan(0)
+        ->and($this->strategy->getLastReason())->toContain('(estimated)');
+});
+
+it('uses fallback estimation from backlog demand when no workers exist', function () {
+    $metrics = createMetrics([
+        'throughput_per_minute' => 0.0, // NO throughput data
+        'active_workers' => 0, // NO workers yet
+        'pending' => 100,
+        'oldest_job_age' => 10,
+    ]);
+
+    $workers = $this->strategy->calculateTargetWorkers($metrics, $this->config);
+
+    // Should scale up based on backlog demand, not return 0
+    expect($workers)->toBeGreaterThan(0)
+        ->and($this->strategy->getLastReason())->toContain('(estimated)');
+});
+
+it('applies urgency factor in fallback when job age is high', function () {
+    // Create two scenarios: low urgency and high urgency
+    $lowUrgencyMetrics = createMetrics([
+        'throughput_per_minute' => 0.0,
+        'active_workers' => 0,
+        'pending' => 50,
+        'oldest_job_age' => 5, // Low urgency (5s < 50% of SLA)
+    ]);
+
+    $highUrgencyMetrics = createMetrics([
+        'throughput_per_minute' => 0.0,
+        'active_workers' => 0,
+        'pending' => 50,
+        'oldest_job_age' => 20, // High urgency (20s > 50% of SLA=30s)
+    ]);
+
+    $lowUrgencyWorkers = $this->strategy->calculateTargetWorkers($lowUrgencyMetrics, $this->config);
+    $highUrgencyWorkers = $this->strategy->calculateTargetWorkers($highUrgencyMetrics, $this->config);
+
+    // High urgency should result in more workers
+    expect($highUrgencyWorkers)->toBeGreaterThan($lowUrgencyWorkers);
+});
+
+it('returns zero for idle state in fallback (no workers and no backlog)', function () {
+    $metrics = createMetrics([
+        'throughput_per_minute' => 0.0,
+        'active_workers' => 0,
+        'pending' => 0,
+        'oldest_job_age' => 0,
+    ]);
+
+    $workers = $this->strategy->calculateTargetWorkers($metrics, $this->config);
+
+    // Idle state: no workers needed
+    expect($workers)->toBe(0);
+});
+
+it('indicates fallback usage in reason string', function () {
+    $metrics = createMetrics([
+        'throughput_per_minute' => 0.0, // Triggers fallback
+        'active_workers' => 5,
+        'pending' => 20,
+        'oldest_job_age' => 3,
+    ]);
+
+    $this->strategy->calculateTargetWorkers($metrics, $this->config);
+    $reason = $this->strategy->getLastReason();
+
+    // Reason should indicate estimation was used
+    expect($reason)->toContain('(estimated)')
+        ->and($reason)->toContain('steady state');
+});
+
+it('does not use fallback when real throughput data is available', function () {
+    $metrics = createMetrics([
+        'throughput_per_minute' => 600.0, // Real throughput data
+        'active_workers' => 20,
+        'pending' => 0,
+        'oldest_job_age' => 0,
+    ]);
+
+    $this->strategy->calculateTargetWorkers($metrics, $this->config);
+    $reason = $this->strategy->getLastReason();
+
+    // Should NOT indicate fallback was used
+    expect($reason)->not->toContain('(estimated)');
 });

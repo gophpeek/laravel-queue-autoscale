@@ -43,8 +43,8 @@ final readonly class NoScaleDownPolicy implements ScalingPolicy
 
         // Check if scale-down is forced by resource constraints
         // If current workers exceed system capacity, we must scale down for stability
-        $maxCapacity = $this->capacity->calculateMaxWorkers();
-        if ($decision->currentWorkers > $maxCapacity) {
+        $capacityResult = $this->capacity->calculateMaxWorkers();
+        if ($decision->currentWorkers > $capacityResult->finalMaxWorkers) {
             // Let resource-constrained scale-down proceed to maintain system stability
             return null;
         }
@@ -58,6 +58,7 @@ final readonly class NoScaleDownPolicy implements ScalingPolicy
             reason: 'NoScaleDownPolicy prevented scale-down - maintaining capacity',
             predictedPickupTime: $decision->predictedPickupTime,
             slaTarget: $decision->slaTarget,
+            capacity: $decision->capacity,
         );
     }
 

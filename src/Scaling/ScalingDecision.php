@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace PHPeek\LaravelQueueAutoscale\Scaling;
 
+use PHPeek\LaravelQueueAutoscale\Scaling\DTOs\CapacityCalculationResult;
+
 final readonly class ScalingDecision
 {
     public function __construct(
@@ -14,6 +16,7 @@ final readonly class ScalingDecision
         public string $reason,
         public ?float $predictedPickupTime = null,
         public int $slaTarget = 30,
+        public ?CapacityCalculationResult $capacity = null,
     ) {}
 
     public function shouldScaleUp(): bool
