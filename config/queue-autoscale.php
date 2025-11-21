@@ -135,8 +135,10 @@ return [
     | on queue metrics and SLA configuration.
     |
     | Available Strategies:
-    | - PredictiveStrategy - Multi-algorithm approach combining rate-based,
-    |                        trend-based, and backlog-based calculations
+    | - PredictiveStrategy    - Multi-algorithm (rate + trend + backlog) [DEFAULT]
+    | - SimpleRateStrategy    - Little's Law only, for stable workloads
+    | - BacklogOnlyStrategy   - Backlog drain focus, for batch processing
+    | - ConservativeStrategy  - PredictiveStrategy + 25% safety buffer
     |
     | PredictiveStrategy Algorithm (DEFAULT):
     | 1. Rate-Based: Little's Law (L = λW) for steady-state worker count
@@ -163,11 +165,38 @@ return [
     |     // ... implement other required methods
     | }
     |
+    | Strategy Selection Guide:
+    |
+    | PredictiveStrategy (DEFAULT):
+    | ✓ General-purpose workloads
+    | ✓ Bursty traffic patterns
+    | ✓ Need proactive scaling
+    | ✗ Minimal resource usage (use SimpleRateStrategy)
+    |
+    | SimpleRateStrategy:
+    | ✓ Stable, predictable workloads
+    | ✓ Minimal overhead desired
+    | ✓ Simple scaling logic
+    | ✗ Bursty traffic (use PredictiveStrategy)
+    | ✗ Strict SLA requirements (use ConservativeStrategy)
+    |
+    | BacklogOnlyStrategy:
+    | ✓ Batch processing
+    | ✓ Irregular arrival patterns
+    | ✓ Processing accumulated work
+    | ✗ Real-time requirements (use PredictiveStrategy)
+    |
+    | ConservativeStrategy:
+    | ✓ Mission-critical queues
+    | ✓ Strict SLA requirements
+    | ✓ Over-provisioning acceptable
+    | ✗ Cost-sensitive environments (use PredictiveStrategy)
+    |
     | When to Create Custom Strategies:
-    | - Simple workloads: Rate-only calculations may suffice
-    | - Complex patterns: Domain-specific scaling logic (e.g., time-of-day)
-    | - Special constraints: Hardware limits, cost optimization
-    | - Integration: External autoscalers (Kubernetes HPA, AWS ASG)
+    | - Domain-specific scaling logic (e.g., time-of-day patterns)
+    | - Special constraints (hardware limits, cost optimization)
+    | - Integration with external autoscalers (Kubernetes HPA, AWS ASG)
+    | - Complex business rules for scaling decisions
     |
     */
     'strategy' => \PHPeek\LaravelQueueAutoscale\Scaling\Strategies\PredictiveStrategy::class,
