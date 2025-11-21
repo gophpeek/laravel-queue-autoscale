@@ -131,7 +131,43 @@ return [
     | Scaling Strategy
     |--------------------------------------------------------------------------
     |
-    | The strategy class responsible for calculating target worker counts.
+    | The strategy class responsible for calculating target worker counts based
+    | on queue metrics and SLA configuration.
+    |
+    | Available Strategies:
+    | - PredictiveStrategy - Multi-algorithm approach combining rate-based,
+    |                        trend-based, and backlog-based calculations
+    |
+    | PredictiveStrategy Algorithm (DEFAULT):
+    | 1. Rate-Based: Little's Law (L = λW) for steady-state worker count
+    | 2. Trend-Based: Predict future arrival rate using configured trend policy
+    | 3. Backlog-Based: Calculate workers needed to prevent SLA breach
+    | 4. Combine: Take maximum (most conservative) of all three calculations
+    |
+    | The strategy takes the maximum to ensure:
+    | - Current workload is handled (rate-based)
+    | - Future spikes are anticipated (trend-based)
+    | - SLA breaches are prevented (backlog-based)
+    |
+    | Custom Strategies:
+    | Create your own by implementing ScalingStrategyContract with methods:
+    | - calculateTargetWorkers(QueueMetricsData, QueueConfiguration): int
+    | - getLastReason(): string
+    | - getLastPrediction(): ?float
+    |
+    | Example custom strategy:
+    | class SimpleRateStrategy implements ScalingStrategyContract {
+    |     public function calculateTargetWorkers($metrics, $config): int {
+    |         return (int) ceil($metrics->pending / 100); // 1 worker per 100 jobs
+    |     }
+    |     // ... implement other required methods
+    | }
+    |
+    | When to Create Custom Strategies:
+    | - Simple workloads: Rate-only calculations may suffice
+    | - Complex patterns: Domain-specific scaling logic (e.g., time-of-day)
+    | - Special constraints: Hardware limits, cost optimization
+    | - Integration: External autoscalers (Kubernetes HPA, AWS ASG)
     |
     */
     'strategy' => \PHPeek\LaravelQueueAutoscale\Scaling\Strategies\PredictiveStrategy::class,
