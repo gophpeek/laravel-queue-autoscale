@@ -18,7 +18,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 5
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         os: [ubuntu-latest]
         php: [8.4, 8.3]
@@ -29,6 +29,12 @@ jobs:
             testbench: 10.*
           - laravel: 11.*
             testbench: 9.*
+        exclude:
+          # Exclude prefer-lowest combinations that have Orchestra Testbench incompatibilities
+          - php: 8.4
+            stability: prefer-lowest
+          - laravel: 12.*
+            stability: prefer-lowest
 
     name: P${{ matrix.php }} - L${{ matrix.laravel }} - ${{ matrix.stability }} - ${{ matrix.os }}
 

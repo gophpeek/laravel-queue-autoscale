@@ -8,10 +8,21 @@ use PHPeek\LaravelQueueAutoscale\Configuration\AutoscaleConfiguration;
 use PHPeek\LaravelQueueAutoscale\Configuration\QueueConfiguration;
 use PHPeek\LaravelQueueAutoscale\Configuration\TrendScalingPolicy;
 use PHPeek\LaravelQueueAutoscale\Contracts\ScalingStrategyContract;
+use PHPeek\LaravelQueueAutoscale\Scaling\Calculators\ArrivalRateEstimator;
 use PHPeek\LaravelQueueAutoscale\Scaling\Calculators\BacklogDrainCalculator;
 use PHPeek\LaravelQueueAutoscale\Scaling\Calculators\LittlesLawCalculator;
 use PHPeek\LaravelQueueMetrics\DataTransferObjects\QueueMetricsData;
 
+/**
+ * Predictive scaling strategy using multiple algorithms
+ *
+ * Combines three approaches to determine optimal worker count:
+ * 1. Rate-Based (Little's Law): Workers needed for steady-state throughput
+ * 2. Arrival-Based: Estimates true arrival rate from backlog changes (handles spikes)
+ * 3. Backlog-Based: Workers needed to drain queue before SLA breach
+ *
+ * Takes the maximum of all three to ensure SLA compliance.
+ */
 final class PredictiveStrategy implements ScalingStrategyContract
 {
     /**
@@ -21,9 +32,12 @@ final class PredictiveStrategy implements ScalingStrategyContract
 
     private bool $usedFallback = false;
 
+    private string $arrivalRateSource = '';
+
     public function __construct(
         private readonly LittlesLawCalculator $littles,
         private readonly BacklogDrainCalculator $backlog,
+        private readonly ArrivalRateEstimator $arrivalEstimator,
     ) {}
 
     public function calculateTargetWorkers(QueueMetricsData $metrics, QueueConfiguration $config): int
@@ -35,15 +49,35 @@ final class PredictiveStrategy implements ScalingStrategyContract
         $oldestJobAge = $metrics->oldestJobAge;
         $activeWorkers = $metrics->activeWorkers;
 
-        // Reset fallback flag
+        // Reset flags
         $this->usedFallback = false;
+        $this->arrivalRateSource = '';
 
-        // Use p99 duration for worst-case protection, fall back to average, then estimate
+        // Determine average job time
         [$avgJobTime, $jobTimeSource] = $this->determineJobTime($metrics, $processingRate, $activeWorkers);
 
-        // FALLBACK: If throughput is 0, estimate processing rate from available indicators
-        if ($processingRate === 0.0) {
-            $processingRate = $this->estimateFallbackProcessingRate(
+        // Estimate arrival rate from backlog changes (more accurate during spikes)
+        $queueKey = "{$config->connection}:{$config->queue}";
+        $arrivalEstimate = $this->arrivalEstimator->estimate($queueKey, $backlogSize, $processingRate);
+
+        // Use estimated arrival rate if confidence is high enough
+        $minConfidence = AutoscaleConfiguration::minArrivalRateConfidence();
+        if ($arrivalEstimate['confidence'] >= $minConfidence) {
+            $arrivalRate = $arrivalEstimate['rate'];
+            $this->arrivalRateSource = $arrivalEstimate['source'];
+        } else {
+            // Fall back to processing rate (only accurate in steady state)
+            $arrivalRate = $processingRate;
+            $this->arrivalRateSource = sprintf(
+                'processing_rate (arrival estimate confidence %.1f%% < %.1f%% threshold)',
+                $arrivalEstimate['confidence'] * 100,
+                $minConfidence * 100
+            );
+        }
+
+        // FALLBACK: If arrival rate is 0, estimate from available indicators
+        if ($arrivalRate === 0.0) {
+            $arrivalRate = $this->estimateFallbackArrivalRate(
                 $backlogSize,
                 $activeWorkers,
                 $oldestJobAge,
@@ -51,24 +85,19 @@ final class PredictiveStrategy implements ScalingStrategyContract
                 $config->maxPickupTimeSeconds
             );
 
-            if ($processingRate > 0.0) {
+            if ($arrivalRate > 0.0) {
                 $this->usedFallback = true;
+                $this->arrivalRateSource = 'fallback_estimate';
             }
         }
 
         // 1. RATE-BASED: Little's Law (L = λW)
-        $steadyStateWorkers = $this->littles->calculate($processingRate, $avgJobTime);
+        // Workers needed to handle current arrival rate
+        $steadyStateWorkers = $this->littles->calculate($arrivalRate, $avgJobTime);
 
         // 2. TREND-BASED: Predict future arrival rate using policy
         $trendPolicy = AutoscaleConfiguration::trendScalingPolicy();
-        $trendData = $this->extractTrendData($metrics);
-
-        $predictedRate = $this->applyTrendPolicy(
-            $processingRate,
-            $trendData,
-            $trendPolicy
-        );
-
+        $predictedRate = $this->applyTrendPolicy($arrivalRate, $trendPolicy);
         $predictiveWorkers = $this->littles->calculate($predictedRate, $avgJobTime);
 
         // 3. BACKLOG-BASED: Prevent SLA breach
@@ -92,11 +121,13 @@ final class PredictiveStrategy implements ScalingStrategyContract
             'steady_state' => $steadyStateWorkers,
             'predictive' => $predictiveWorkers,
             'backlog_drain' => $backlogDrainWorkers,
+            'arrival_rate' => $arrivalRate,
+            'processing_rate' => $processingRate,
             'predicted_rate' => $predictedRate,
             'avg_job_time' => $avgJobTime,
             'avg_job_time_source' => $jobTimeSource,
+            'arrival_rate_source' => $this->arrivalRateSource,
             'backlog' => $backlogSize,
-            'processing_rate' => $processingRate,
         ];
 
         return (int) ceil(max($targetWorkers, 0));
@@ -111,33 +142,39 @@ final class PredictiveStrategy implements ScalingStrategyContract
         $parts = [];
         $calc = $this->lastCalculation;
 
-        if ($calc['backlog_drain'] > 0) {
+        // Explain which algorithm drove the decision
+        $maxWorkers = max($calc['steady_state'], $calc['predictive'], $calc['backlog_drain']);
+
+        if ($calc['backlog_drain'] >= $maxWorkers && $calc['backlog_drain'] > 0) {
             $parts[] = sprintf(
                 'backlog=%d requires %.1f workers to prevent SLA breach',
                 $calc['backlog'],
                 $calc['backlog_drain']
             );
-        }
-
-        if ($calc['predictive'] > $calc['steady_state']) {
+        } elseif ($calc['predictive'] >= $maxWorkers && $calc['predictive'] > $calc['steady_state']) {
             $parts[] = sprintf(
                 'trend predicts rate increase to %.2f/s requiring %.1f workers',
                 $calc['predicted_rate'],
                 $calc['predictive']
             );
-        }
-
-        if (empty($parts)) {
+        } else {
             $fallbackIndicator = $this->usedFallback ? ' (estimated)' : '';
-            $jobTimeSource = ($calc['avg_job_time_source'] ?? 'unknown');
             $parts[] = sprintf(
-                'steady state: rate=%.2f/s × time=%.1fs (%s) = %.1f workers%s',
-                $calc['processing_rate'],
+                'arrival_rate=%.2f/s × job_time=%.1fs = %.1f workers%s',
+                $calc['arrival_rate'],
                 $calc['avg_job_time'],
-                $jobTimeSource,
                 $calc['steady_state'],
                 $fallbackIndicator
             );
+        }
+
+        // Add arrival rate source if different from processing rate
+        $arrivalRate = (float) $calc['arrival_rate'];
+        $processingRate = (float) $calc['processing_rate'];
+        if ($arrivalRate !== $processingRate) {
+            $diff = $arrivalRate - $processingRate;
+            $direction = $diff > 0 ? 'growing' : 'shrinking';
+            $parts[] = sprintf('backlog %s (arrival %.2f/s vs processing %.2f/s)', $direction, $arrivalRate, $processingRate);
         }
 
         return implode('; ', $parts);
@@ -175,11 +212,7 @@ final class PredictiveStrategy implements ScalingStrategyContract
      * Priority order:
      * 1. Average duration from metrics (when available)
      * 2. Estimation from throughput and worker count
-     * 3. Fallback to 1 second default
-     *
-     * Note: P99, baseline, and trend data are available in the metrics package
-     * but not currently exposed through the QueueMetricsData DTO.
-     * These will be integrated when the DTO structure is extended.
+     * 3. Configurable fallback (default: 2.0 seconds)
      *
      * @return array{float, string} [avgJobTime, source]
      */
@@ -189,117 +222,74 @@ final class PredictiveStrategy implements ScalingStrategyContract
         int $activeWorkers
     ): array {
         // Priority 1: Use average duration from metrics
-        // Note: Metrics package stores avgDuration in milliseconds, convert to seconds
         if ($metrics->avgDuration > 0) {
-            $avgDurationSeconds = $metrics->avgDuration / 1000.0;
+            // Metrics stores avgDuration - could be ms or seconds depending on version
+            // If value is > 100, assume milliseconds and convert
+            $avgDuration = $metrics->avgDuration;
+            $avgDurationSeconds = $avgDuration > 100 ? $avgDuration / 1000.0 : $avgDuration;
 
-            // Sanity check: If avgDuration is unreasonably low (< 10ms), it's likely a bug
-            // Jobs that take < 10ms are extremely rare and would indicate a measurement issue
-            if ($avgDurationSeconds < 0.01) {
-                // Fall back to estimation
-                [$estimated, $source] = $this->estimateAvgJobTime($processingRate, $activeWorkers);
-
-                return [$estimated, sprintf('metrics.avgDuration too low (%.1fms), using %s', $metrics->avgDuration, $source)];
+            // Sanity check: reject unreasonably low values (< 10ms)
+            if ($avgDurationSeconds >= 0.01) {
+                return [$avgDurationSeconds, sprintf('metrics: %.2fs', $avgDurationSeconds)];
             }
-
-            return [$avgDurationSeconds, sprintf('metrics.avgDuration: %.1fms → %.2fs', $metrics->avgDuration, $avgDurationSeconds)];
         }
 
         // Priority 2: Estimate from throughput and active workers
-        return $this->estimateAvgJobTime($processingRate, $activeWorkers);
-    }
-
-    /**
-     * Estimate average job time from throughput and workers
-     *
-     * Priority order:
-     * 1. Throughput-based estimation (when active workers and rate available)
-     * 2. Fallback: 1.0 second default
-     *
-     * Note: Baseline data integration will be added when DTO structure supports it
-     *
-     * @return array{float, string} [avgJobTime, source]
-     */
-    private function estimateAvgJobTime(float $processingRate, int $activeWorkers): array
-    {
-        // If we have active workers and processing rate, estimate from throughput
         if ($activeWorkers > 0 && $processingRate > 0) {
             $estimated = $activeWorkers / $processingRate;
 
-            return [$estimated, sprintf('estimated: %d workers / %.2f rate', $activeWorkers, $processingRate)];
+            // Sanity check: cap at reasonable maximum (10 minutes)
+            $estimated = min($estimated, 600.0);
+
+            return [$estimated, sprintf('estimated: %d workers / %.2f rate = %.2fs', $activeWorkers, $processingRate, $estimated)];
         }
 
-        // Last resort: assume 1 second per job
-        return [1.0, 'fallback: 1.0s default'];
+        // Priority 3: Configurable fallback
+        $fallback = AutoscaleConfiguration::fallbackJobTimeSeconds();
+
+        return [$fallback, sprintf('fallback: %.1fs (configurable)', $fallback)];
     }
 
     /**
-     * Extract trend data from queue metrics
+     * Apply trend policy to predict future arrival rate
      *
-     * Note: Trend data is available in the metrics package but not currently
-     * exposed through the QueueMetricsData DTO. Returns null until DTO supports it.
+     * Since we now estimate arrival rate from backlog changes,
+     * the trend policy provides additional forward-looking adjustment.
      */
-    private function extractTrendData(QueueMetricsData $metrics): null
+    private function applyTrendPolicy(float $currentRate, TrendScalingPolicy $policy): float
     {
-        // Trend data not currently accessible through DTO
-        // Will be integrated when laravel-queue-metrics exposes it properly
-        return null;
-    }
-
-    /**
-     * Apply trend policy to determine predicted processing rate
-     *
-     * @param  array<string, mixed>|null  $trendData
-     */
-    private function applyTrendPolicy(
-        float $currentRate,
-        ?array $trendData,
-        TrendScalingPolicy $policy
-    ): float {
-        // If policy is disabled or no trend data, use current rate
-        if (! $policy->isEnabled() || $trendData === null) {
+        if (! $policy->isEnabled()) {
             return $currentRate;
         }
 
-        // Check if trend confidence meets minimum threshold
-        if ($trendData['confidence'] < $policy->minConfidence()) {
-            return $currentRate;
-        }
+        // Apply a small growth factor based on policy aggressiveness
+        // This helps anticipate continued growth during spikes
+        $growthFactor = match ($policy) {
+            TrendScalingPolicy::HINT => 1.1,       // 10% buffer
+            TrendScalingPolicy::MODERATE => 1.2,   // 20% buffer
+            TrendScalingPolicy::AGGRESSIVE => 1.3, // 30% buffer
+            default => 1.0,
+        };
 
-        // Blend current rate with forecast based on policy weight
-        $trendWeight = $policy->trendWeight();
-        $currentWeight = 1.0 - $trendWeight;
-
-        // Forecast is in jobs/minute, convert to jobs/second
-        $forecast = (float) ($trendData['forecast'] ?? 0.0);
-        $forecastRate = $forecast / 60.0;
-
-        // Weighted blend
-        $predictedRate = ($currentRate * $currentWeight) + ($forecastRate * $trendWeight);
-
-        // Never predict negative rate
-        return max($predictedRate, 0.0);
+        return $currentRate * $growthFactor;
     }
 
     /**
-     * Estimate processing rate when throughput data is unavailable
+     * Estimate arrival rate when no data is available
      *
      * Uses multiple indicators to make intelligent estimates:
      * 1. Active workers' capacity (if workers exist, they're processing)
      * 2. Backlog demand (if backlog exists, we need workers)
      * 3. Urgency from oldest job age (how fast we need to process)
      *
-     * This prevents the "death spiral" where zero throughput leads to
-     * scaling down to zero workers despite having pending jobs.
-     *
      * @param  int  $backlogSize  Number of pending jobs
      * @param  int  $activeWorkers  Current active workers
      * @param  int  $oldestJobAge  Age of oldest job in seconds
      * @param  float  $avgJobTime  Average processing time per job
      * @param  int  $slaTarget  Max pickup time SLA in seconds
-     * @return float Estimated processing rate in jobs/second
+     * @return float Estimated arrival rate in jobs/second
      */
-    private function estimateFallbackProcessingRate(
+    private function estimateFallbackArrivalRate(
         int $backlogSize,
         int $activeWorkers,
         int $oldestJobAge,
@@ -307,37 +297,27 @@ final class PredictiveStrategy implements ScalingStrategyContract
         int $slaTarget,
     ): float {
         // Strategy 1: Estimate from active workers' capacity
-        // If we have workers, they're likely processing at their natural rate
         if ($activeWorkers > 0 && $avgJobTime > 0) {
-            // Each worker can process 1/avgJobTime jobs per second
             $workerCapacity = $activeWorkers / $avgJobTime;
 
-            // Conservative: assume 70% utilization (workers aren't always at 100%)
+            // Conservative: assume 70% utilization
             return $workerCapacity * 0.7;
         }
 
         // Strategy 2: Estimate from backlog demand
-        // If we have backlog but no workers, estimate minimum needed rate
         if ($backlogSize > 0 && $slaTarget > 0) {
-            // If we have oldest job age, use it for urgency
             if ($oldestJobAge > 0) {
-                // We need to process faster if jobs are getting old
                 $urgencyFactor = min($oldestJobAge / max($slaTarget * 0.5, 1), 2.0);
-
-                // Base rate: process backlog within SLA window
                 $baseRate = $backlogSize / max($slaTarget, 1);
 
-                // Apply urgency multiplier (up to 2x)
                 return $baseRate * $urgencyFactor;
             }
 
-            // No age data: conservative estimate to process backlog within SLA
-            // Aim to clear backlog in half the SLA time for safety margin
+            // No age data: process backlog within half SLA time
             return $backlogSize / max($slaTarget / 2, 1);
         }
 
-        // Strategy 3: No workers and no backlog
-        // This is idle state - no throughput estimate needed
+        // Idle state
         return 0.0;
     }
 }

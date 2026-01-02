@@ -26,19 +26,51 @@ final readonly class AutoscaleConfiguration
         return (string) config('queue-autoscale.manager.log_channel', 'stack');
     }
 
+    /**
+     * Get scaling config value with backwards compatibility for 'prediction' key
+     */
+    private static function scalingConfig(string $key, mixed $default): mixed
+    {
+        // Try new 'scaling' key first, then fall back to deprecated 'prediction'
+        return config("queue-autoscale.scaling.{$key}")
+            ?? config("queue-autoscale.prediction.{$key}")
+            ?? $default;
+    }
+
     public static function trendWindowSeconds(): int
     {
-        return (int) config('queue-autoscale.prediction.trend_window_seconds', 300);
+        return (int) self::scalingConfig('trend_window_seconds', 300);
     }
 
     public static function forecastHorizonSeconds(): int
     {
-        return (int) config('queue-autoscale.prediction.forecast_horizon_seconds', 60);
+        return (int) self::scalingConfig('forecast_horizon_seconds', 60);
     }
 
     public static function breachThreshold(): float
     {
-        return (float) config('queue-autoscale.prediction.breach_threshold', 0.8);
+        return (float) self::scalingConfig('breach_threshold', 0.5);
+    }
+
+    /**
+     * Fallback job time when metrics are unavailable
+     *
+     * Used by scaling algorithms when actual job duration data is not available.
+     * Should be set based on typical job characteristics in your application.
+     */
+    public static function fallbackJobTimeSeconds(): float
+    {
+        return (float) self::scalingConfig('fallback_job_time_seconds', 2.0);
+    }
+
+    /**
+     * Minimum confidence required to use estimated arrival rate
+     *
+     * Below this confidence level, processing rate is used instead.
+     */
+    public static function minArrivalRateConfidence(): float
+    {
+        return (float) self::scalingConfig('min_arrival_rate_confidence', 0.5);
     }
 
     public static function maxCpuPercent(): int
@@ -99,7 +131,7 @@ final readonly class AutoscaleConfiguration
 
     public static function trendScalingPolicy(): TrendScalingPolicy
     {
-        $policy = (string) config('queue-autoscale.prediction.trend_policy', 'moderate');
+        $policy = (string) self::scalingConfig('trend_policy', 'moderate');
 
         return TrendScalingPolicy::tryFrom($policy) ?? TrendScalingPolicy::MODERATE;
     }

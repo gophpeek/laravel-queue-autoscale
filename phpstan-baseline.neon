@@ -3,7 +3,7 @@ parameters:
 		-
 			message: '#^Cannot cast mixed to float\.$#'
 			identifier: cast.double
-			count: 1
+			count: 3
 			path: src/Configuration/AutoscaleConfiguration.php
 
 		-
@@ -83,12 +83,6 @@ parameters:
 			identifier: cast.int
 			count: 1
 			path: src/Manager/AutoscaleManager.php
-
-		-
-			message: '#^Cannot cast mixed to float\.$#'
-			identifier: cast.double
-			count: 1
-			path: src/Scaling/Strategies/PredictiveStrategy.php
 
 		-
 			message: '#^If condition is always true\.$#'
