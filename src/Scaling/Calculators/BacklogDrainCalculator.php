@@ -67,21 +67,33 @@ final readonly class BacklogDrainCalculator
     /**
      * Get aggressiveness multiplier based on how close we are to SLA breach
      *
-     * Progressive scaling to prevent breaches early:
-     * - 0.0-0.5: No action (0.0x)
-     * - 0.5-0.8: Early preparation (1.2x)
-     * - 0.8-0.9: Aggressive scaling (1.5x)
-     * - 0.9-1.0: Emergency scaling (2.0x)
-     * - 1.0+: Already breached! (3.0x)
+     * Uses a continuous exponential function to avoid discrete jumps that
+     * could cause scaling instability.
+     *
+     * Formula: multiplier = 1.0 + k * (slaProgress - threshold)^2
+     * where k is calibrated so that:
+     * - At 50% (threshold): 1.0x (start responding)
+     * - At 80%: ~1.5x
+     * - At 100%: ~2.5x
+     * - At 150% (cap): ~5.0x
+     *
+     * The quadratic curve provides smooth acceleration as urgency increases.
      */
     private function getAggressivenessMultiplier(float $slaProgress): float
     {
-        return match (true) {
-            $slaProgress >= 1.0 => 3.0,  // Already breached! Maximum aggression
-            $slaProgress >= 0.9 => 2.0,  // 90%+ Emergency scaling
-            $slaProgress >= 0.8 => 1.5,  // 80%+ Aggressive scaling
-            $slaProgress >= 0.5 => 1.2,  // 50%+ Early preparation
-            default => 0.0,              // Below threshold - no action
-        };
+        // Below threshold - no action
+        if ($slaProgress < 0.5) {
+            return 0.0;
+        }
+
+        // Continuous quadratic function starting at threshold
+        // f(x) = 1 + k(x - 0.5)² where x is slaProgress
+        // Calibrated: k = 8.0 gives us ~2.5x at 100% and ~5.0x at 150%
+        $k = 8.0;
+        $progressAboveThreshold = $slaProgress - 0.5;
+        $multiplier = 1.0 + $k * ($progressAboveThreshold * $progressAboveThreshold);
+
+        // Cap at 5.0 to prevent extreme over-provisioning
+        return min($multiplier, 5.0);
     }
 }
