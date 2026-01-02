@@ -63,10 +63,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Prediction Configuration
+    | Scaling Algorithm Configuration
     |--------------------------------------------------------------------------
     |
-    | Controls how the predictive scaling algorithm behaves.
+    | Controls how the scaling algorithms calculate worker requirements.
+    |
+    | Job Time Estimation:
+    | When actual job duration metrics are unavailable, the algorithm needs
+    | a fallback estimate. Set this based on your typical job characteristics:
+    | - Fast jobs (notifications, cache updates): 0.1 - 0.5 seconds
+    | - Medium jobs (emails, API calls): 1 - 5 seconds
+    | - Slow jobs (reports, file processing): 10 - 60 seconds
+    | - Long jobs (video encoding, ML): 60+ seconds
+    |
+    | Arrival Rate Estimation:
+    | The algorithm estimates job arrival rate from backlog changes over time.
+    | This is more accurate than using processing rate during traffic spikes.
+    | - min_confidence: Minimum confidence to use estimated arrival rate (0.0-1.0)
     |
     | Trend Policy Options:
     | - 'disabled'   - Ignore trend predictions, reactive scaling only
@@ -75,11 +88,25 @@ return [
     | - 'aggressive' - Proactive (80% trend weight, confidence >= 0.5)
     |
     */
-    'prediction' => [
+    'scaling' => [
+        'fallback_job_time_seconds' => env('QUEUE_AUTOSCALE_FALLBACK_JOB_TIME', 2.0),
+        'min_arrival_rate_confidence' => 0.5,   // Use estimated rate when confidence >= 50%
         'trend_window_seconds' => 300,          // 5 minutes historical window
         'forecast_horizon_seconds' => 60,       // 1 minute ahead prediction
         'breach_threshold' => 0.5,              // Act at 50% of SLA for proactive scaling
-        'trend_policy' => env('QUEUE_AUTOSCALE_TREND_POLICY', 'moderate'), // Trend scaling policy
+        'trend_policy' => env('QUEUE_AUTOSCALE_TREND_POLICY', 'moderate'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Prediction Configuration (DEPRECATED - use 'scaling' instead)
+    |--------------------------------------------------------------------------
+    |
+    | Kept for backwards compatibility. Values here are merged with 'scaling'.
+    |
+    */
+    'prediction' => [
+        // These are read from 'scaling' now, but kept for backwards compatibility
     ],
 
     /*
