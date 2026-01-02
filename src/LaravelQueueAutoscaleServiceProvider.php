@@ -11,6 +11,7 @@ use PHPeek\LaravelQueueAutoscale\Contracts\ScalingStrategyContract;
 use PHPeek\LaravelQueueAutoscale\Manager\AutoscaleManager;
 use PHPeek\LaravelQueueAutoscale\Manager\SignalHandler;
 use PHPeek\LaravelQueueAutoscale\Policies\PolicyExecutor;
+use PHPeek\LaravelQueueAutoscale\Scaling\Calculators\ArrivalRateEstimator;
 use PHPeek\LaravelQueueAutoscale\Scaling\Calculators\BacklogDrainCalculator;
 use PHPeek\LaravelQueueAutoscale\Scaling\Calculators\CapacityCalculator;
 use PHPeek\LaravelQueueAutoscale\Scaling\Calculators\LittlesLawCalculator;
@@ -33,6 +34,7 @@ class LaravelQueueAutoscaleServiceProvider extends ServiceProvider
         $this->app->singleton(TrendPredictor::class);
         $this->app->singleton(BacklogDrainCalculator::class);
         $this->app->singleton(CapacityCalculator::class);
+        $this->app->singleton(ArrivalRateEstimator::class);
 
         // Register scaling strategy from config
         $this->app->singleton(ScalingStrategyContract::class, function ($app) {

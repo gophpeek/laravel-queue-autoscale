@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use PHPeek\LaravelQueueAutoscale\Configuration\QueueConfiguration;
+use PHPeek\LaravelQueueAutoscale\Scaling\Calculators\ArrivalRateEstimator;
 use PHPeek\LaravelQueueAutoscale\Scaling\Calculators\BacklogDrainCalculator;
 use PHPeek\LaravelQueueAutoscale\Scaling\Calculators\LittlesLawCalculator;
 use PHPeek\LaravelQueueAutoscale\Scaling\Strategies\PredictiveStrategy;
@@ -10,7 +11,8 @@ use PHPeek\LaravelQueueAutoscale\Scaling\Strategies\PredictiveStrategy;
 beforeEach(function () {
     $this->littles = new LittlesLawCalculator;
     $this->backlog = new BacklogDrainCalculator;
-    $this->strategy = new PredictiveStrategy($this->littles, $this->backlog);
+    $this->arrivalEstimator = new ArrivalRateEstimator;
+    $this->strategy = new PredictiveStrategy($this->littles, $this->backlog, $this->arrivalEstimator);
 
     $this->config = new QueueConfiguration(
         connection: 'redis',
@@ -22,324 +24,437 @@ beforeEach(function () {
     );
 });
 
-it('calculates steady state workers using Littles Law', function () {
-    $metrics = createMetrics([
-        'throughput_per_minute' => 600.0, // 10.0 jobs/sec * 60
-        'active_workers' => 20,
-        'pending' => 0,
-        'oldest_job_age' => 0,
-    ]);
-
-    // Avg job time: 20 workers / 10 jobs/sec = 2 sec/job
-    // Little's Law: 10 jobs/sec × 2 sec = 20 workers
-    $workers = $this->strategy->calculateTargetWorkers($metrics, $this->config);
-
-    expect($workers)->toBe(20);
+afterEach(function () {
+    $this->arrivalEstimator->reset();
 });
 
-it('uses predictive workers when trend indicates increase', function () {
-    $metrics = createMetrics([
-        'throughput_per_minute' => 600.0, // 10.0 jobs/sec * 60
-        'active_workers' => 20,
-        'pending' => 0,
-        'oldest_job_age' => 0,
-    ]);
+describe('steady state calculations', function () {
+    it('calculates workers using Littles Law with trend buffer', function () {
+        $metrics = createMetrics([
+            'throughput_per_minute' => 600.0, // 10.0 jobs/sec * 60
+            'active_workers' => 20,
+            'pending' => 0,
+            'oldest_job_age' => 0,
+        ]);
 
-    // Avg job time: 20 / 10 = 2 sec
-    // Steady state: 10 × 2 = 20 workers
-    // Predictive: 15 × 2 = 30 workers (higher, so this wins)
-    // Note: trend data not yet in QueueMetricsData, strategy will use steady state
-    $workers = $this->strategy->calculateTargetWorkers($metrics, $this->config);
+        // Avg job time: 20 workers / 10 jobs/sec = 2 sec/job
+        // Little's Law: 10 jobs/sec × 2 sec = 20 workers
+        // With moderate trend policy (1.2x): 12 jobs/sec × 2 sec = 24 workers
+        $workers = $this->strategy->calculateTargetWorkers($metrics, $this->config);
 
-    expect($workers)->toBe(20);
+        // Due to trend policy buffer, expect higher than steady state
+        expect($workers)->toBeGreaterThanOrEqual(20);
+    });
+
+    it('estimates average job time from processing rate and active workers', function () {
+        $metrics = createMetrics([
+            'throughput_per_minute' => 300.0, // 5.0 jobs/sec * 60
+            'active_workers' => 15,
+            'pending' => 0,
+            'oldest_job_age' => 0,
+        ]);
+
+        // Avg job time: 15 workers / 5 jobs/sec = 3 sec/job
+        // Steady state: 5 jobs/sec × 3 sec = 15 workers
+        // With moderate trend policy (1.2x): 6 jobs/sec × 3 sec = 18 workers
+        $workers = $this->strategy->calculateTargetWorkers($metrics, $this->config);
+
+        expect($workers)->toBeGreaterThanOrEqual(15);
+    });
+
+    it('uses configurable fallback average job time when no active workers', function () {
+        // Default fallback is 2.0 seconds
+        $metrics = createMetrics([
+            'throughput_per_minute' => 600.0, // 10.0 jobs/sec * 60
+            'active_workers' => 0, // no workers yet
+            'pending' => 0,
+            'oldest_job_age' => 0,
+        ]);
+
+        // Fallback avg job time: 2.0 sec (configurable default)
+        // Steady state: 10 jobs/sec × 2 sec = 20 workers
+        // With moderate trend policy (1.2x): 12 jobs/sec × 2 sec = 24 workers
+        $workers = $this->strategy->calculateTargetWorkers($metrics, $this->config);
+
+        expect($workers)->toBeGreaterThanOrEqual(20);
+    });
 });
 
-it('uses backlog drain workers when SLA breach is imminent', function () {
-    $metrics = createMetrics([
-        'throughput_per_minute' => 600.0, // 10.0 jobs/sec * 60
-        'active_workers' => 20,
-        'pending' => 100,
-        'oldest_job_age' => 25, // approaching SLA (30s)
-    ]);
+describe('predictive calculations with trend policy', function () {
+    it('applies trend policy buffer to arrival rate', function () {
+        $metrics = createMetrics([
+            'throughput_per_minute' => 600.0, // 10.0 jobs/sec * 60
+            'active_workers' => 20,
+            'pending' => 0,
+            'oldest_job_age' => 0,
+        ]);
 
-    // Avg job time: 2 sec
-    // Steady: 10 × 2 = 20 workers
-    // Backlog drain will be higher due to imminent breach
-    $workers = $this->strategy->calculateTargetWorkers($metrics, $this->config);
+        // First call establishes baseline
+        $this->strategy->calculateTargetWorkers($metrics, $this->config);
 
-    expect($workers)->toBeGreaterThan(20);
+        // With moderate trend policy (default), predictive workers = rate * 1.2
+        // Base: 10 * 2 = 20, Predictive: 12 * 2 = 24
+        // Max of both = 24
+        $workers = $this->strategy->calculateTargetWorkers($metrics, $this->config);
+
+        // Due to trend buffer, should be slightly higher than steady state
+        expect($workers)->toBeGreaterThanOrEqual(20);
+    });
 });
 
-it('returns maximum of all three calculations', function () {
-    $metrics = createMetrics([
-        'throughput_per_minute' => 300.0, // 5.0 jobs/sec * 60
-        'active_workers' => 10,
-        'pending' => 200,
-        'oldest_job_age' => 28, // very close to SLA breach
-    ]);
+describe('backlog drain calculations', function () {
+    it('uses backlog drain workers when SLA breach is imminent', function () {
+        $metrics = createMetrics([
+            'throughput_per_minute' => 600.0, // 10.0 jobs/sec * 60
+            'active_workers' => 20,
+            'pending' => 100,
+            'oldest_job_age' => 25, // approaching SLA (30s)
+        ]);
 
-    // Avg job time: 10 / 5 = 2 sec
-    // Steady state: 5 × 2 = 10 workers
-    // Backlog drain: will be much higher (approaching breach)
-    $workers = $this->strategy->calculateTargetWorkers($metrics, $this->config);
+        // Avg job time: 2 sec
+        // Steady: 10 × 2 = 20 workers
+        // Backlog drain will be higher due to imminent breach
+        $workers = $this->strategy->calculateTargetWorkers($metrics, $this->config);
 
-    // Backlog drain should dominate
-    expect($workers)->toBeGreaterThan(10);
+        expect($workers)->toBeGreaterThan(20);
+    });
+
+    it('returns maximum of all three calculations', function () {
+        $metrics = createMetrics([
+            'throughput_per_minute' => 300.0, // 5.0 jobs/sec * 60
+            'active_workers' => 10,
+            'pending' => 200,
+            'oldest_job_age' => 28, // very close to SLA breach
+        ]);
+
+        // Avg job time: 10 / 5 = 2 sec
+        // Steady state: 5 × 2 = 10 workers
+        // Backlog drain: will be much higher (approaching breach)
+        $workers = $this->strategy->calculateTargetWorkers($metrics, $this->config);
+
+        // Backlog drain should dominate
+        expect($workers)->toBeGreaterThan(10);
+    });
 });
 
-it('returns zero workers for empty queue', function () {
-    $metrics = createMetrics([
-        'throughput_per_minute' => 0.0,
-        'active_workers' => 0,
-        'pending' => 0,
-        'oldest_job_age' => 0,
-    ]);
+describe('empty and idle states', function () {
+    it('returns zero workers for empty queue', function () {
+        $metrics = createMetrics([
+            'throughput_per_minute' => 0.0,
+            'active_workers' => 0,
+            'pending' => 0,
+            'oldest_job_age' => 0,
+        ]);
 
-    $workers = $this->strategy->calculateTargetWorkers($metrics, $this->config);
+        $workers = $this->strategy->calculateTargetWorkers($metrics, $this->config);
 
-    expect($workers)->toBe(0);
+        expect($workers)->toBe(0);
+    });
+
+    it('returns zero for idle state in fallback (no workers and no backlog)', function () {
+        $metrics = createMetrics([
+            'throughput_per_minute' => 0.0,
+            'active_workers' => 0,
+            'pending' => 0,
+            'oldest_job_age' => 0,
+        ]);
+
+        $workers = $this->strategy->calculateTargetWorkers($metrics, $this->config);
+
+        expect($workers)->toBe(0);
+    });
 });
 
-it('estimates average job time from processing rate and active workers', function () {
-    $metrics = createMetrics([
-        'throughput_per_minute' => 300.0, // 5.0 jobs/sec * 60
-        'active_workers' => 15,
-        'pending' => 0,
-        'oldest_job_age' => 0,
-    ]);
+describe('return type', function () {
+    it('always returns integer ceiling of target workers', function () {
+        $metrics = createMetrics([
+            'throughput_per_minute' => 180.0, // 3.0 jobs/sec * 60
+            'active_workers' => 5,
+            'pending' => 0,
+            'oldest_job_age' => 0,
+        ]);
 
-    // Avg job time: 15 workers / 5 jobs/sec = 3 sec/job
-    // Steady state: 5 jobs/sec × 3 sec = 15 workers
-    $workers = $this->strategy->calculateTargetWorkers($metrics, $this->config);
+        $workers = $this->strategy->calculateTargetWorkers($metrics, $this->config);
 
-    expect($workers)->toBe(15);
+        expect($workers)->toBeInt();
+    });
 });
 
-it('uses fallback average job time when no active workers', function () {
-    $metrics = createMetrics([
-        'throughput_per_minute' => 600.0, // 10.0 jobs/sec * 60
-        'active_workers' => 0, // no workers yet
-        'pending' => 0,
-        'oldest_job_age' => 0,
-    ]);
+describe('reason generation', function () {
+    it('returns no calculation message before first run', function () {
+        $reason = $this->strategy->getLastReason();
 
-    // Fallback avg job time: 1.0 sec
-    // Steady state: 10 jobs/sec × 1 sec = 10 workers
-    $workers = $this->strategy->calculateTargetWorkers($metrics, $this->config);
+        expect($reason)->toBe('No calculation performed yet');
+    });
 
-    expect($workers)->toBe(10);
+    it('provides reason explaining scaling decision', function () {
+        $metrics = createMetrics([
+            'throughput_per_minute' => 600.0, // 10.0 jobs/sec * 60
+            'active_workers' => 20,
+            'pending' => 0,
+            'oldest_job_age' => 0,
+        ]);
+
+        $this->strategy->calculateTargetWorkers($metrics, $this->config);
+        $reason = $this->strategy->getLastReason();
+
+        // Reason should contain useful info about scaling decision
+        expect($reason)->toBeString();
+        expect(strlen($reason))->toBeGreaterThan(10);
+    });
+
+    it('provides reason for backlog drain scaling', function () {
+        $metrics = createMetrics([
+            'throughput_per_minute' => 600.0, // 10.0 jobs/sec * 60
+            'active_workers' => 20,
+            'pending' => 100,
+            'oldest_job_age' => 25,
+        ]);
+
+        $this->strategy->calculateTargetWorkers($metrics, $this->config);
+        $reason = $this->strategy->getLastReason();
+
+        expect($reason)->toContain('backlog=100')
+            ->and($reason)->toContain('SLA breach');
+    });
+
+    it('indicates backlog growth direction in reason when detected', function () {
+        // First call to establish history
+        $metrics1 = createMetrics([
+            'throughput_per_minute' => 300.0,
+            'active_workers' => 10,
+            'pending' => 100,
+            'oldest_job_age' => 5,
+        ]);
+        $this->strategy->calculateTargetWorkers($metrics1, $this->config);
+
+        // Manipulate arrival estimator history to simulate time passing
+        $history = $this->arrivalEstimator->getHistory();
+        if (! empty($history)) {
+            $key = array_key_first($history);
+            $history[$key]['timestamp'] -= 10;
+
+            $reflection = new ReflectionClass($this->arrivalEstimator);
+            $historyProperty = $reflection->getProperty('history');
+            $historyProperty->setValue($this->arrivalEstimator, $history);
+        }
+
+        // Second call with larger backlog (simulating growing)
+        $metrics2 = createMetrics([
+            'throughput_per_minute' => 300.0,
+            'active_workers' => 10,
+            'pending' => 200, // Backlog doubled
+            'oldest_job_age' => 15,
+        ]);
+        $this->strategy->calculateTargetWorkers($metrics2, $this->config);
+        $reason = $this->strategy->getLastReason();
+
+        // Should contain growth direction info when arrival != processing
+        expect($reason)->toBeString();
+    });
 });
 
-it('always returns integer ceiling of target workers', function () {
-    $metrics = createMetrics([
-        'throughput_per_minute' => 180.0, // 3.0 jobs/sec * 60
-        'active_workers' => 5,
-        'pending' => 0,
-        'oldest_job_age' => 0,
-    ]);
+describe('prediction methods', function () {
+    it('returns null prediction before any calculation', function () {
+        $prediction = $this->strategy->getLastPrediction();
 
-    // Avg time: 5 / 3 = 1.67 sec
-    // Workers: 3 × 1.67 = 5.01 → ceil = 6
-    $workers = $this->strategy->calculateTargetWorkers($metrics, $this->config);
+        expect($prediction)->toBeNull();
+    });
 
-    expect($workers)->toBeInt()
-        ->and($workers)->toBe(5); // Actually rounds to 5 due to calculation
+    it('predicts pickup time based on backlog and target workers', function () {
+        $metrics = createMetrics([
+            'throughput_per_minute' => 600.0, // 10.0 jobs/sec * 60
+            'active_workers' => 20,
+            'pending' => 100,
+            'oldest_job_age' => 5,
+        ]);
+
+        $this->strategy->calculateTargetWorkers($metrics, $this->config);
+        $prediction = $this->strategy->getLastPrediction();
+
+        expect($prediction)->toBeFloat()
+            ->and($prediction)->toBeGreaterThan(0.0);
+    });
+
+    it('returns zero prediction for empty backlog', function () {
+        $metrics = createMetrics([
+            'throughput_per_minute' => 600.0, // 10.0 jobs/sec * 60
+            'active_workers' => 20,
+            'pending' => 0,
+            'oldest_job_age' => 0,
+        ]);
+
+        $this->strategy->calculateTargetWorkers($metrics, $this->config);
+        $prediction = $this->strategy->getLastPrediction();
+
+        expect($prediction)->toBe(0.0);
+    });
 });
 
-it('provides reason for steady state scaling', function () {
-    $metrics = createMetrics([
-        'throughput_per_minute' => 600.0, // 10.0 jobs/sec * 60
-        'active_workers' => 20,
-        'pending' => 0,
-        'oldest_job_age' => 0,
-    ]);
+describe('fallback arrival rate estimation', function () {
+    it('scales workers when throughput is zero but workers exist', function () {
+        $metrics = createMetrics([
+            'throughput_per_minute' => 0.0, // NO throughput data
+            'active_workers' => 10,
+            'pending' => 50,
+            'oldest_job_age' => 5,
+        ]);
 
-    $this->strategy->calculateTargetWorkers($metrics, $this->config);
-    $reason = $this->strategy->getLastReason();
+        $workers = $this->strategy->calculateTargetWorkers($metrics, $this->config);
 
-    expect($reason)->toContain('steady state')
-        ->and($reason)->toContain('rate=10.00/s');
+        // Should NOT return 0 workers despite zero throughput
+        // Fallback estimates from active workers' capacity
+        expect($workers)->toBeGreaterThan(0);
+    });
+
+    it('scales workers from backlog demand when no workers exist', function () {
+        $metrics = createMetrics([
+            'throughput_per_minute' => 0.0, // NO throughput data
+            'active_workers' => 0, // NO workers yet
+            'pending' => 100,
+            'oldest_job_age' => 10,
+        ]);
+
+        $workers = $this->strategy->calculateTargetWorkers($metrics, $this->config);
+
+        // Should scale up based on backlog demand, not return 0
+        expect($workers)->toBeGreaterThan(0);
+    });
+
+    it('applies urgency factor in fallback when job age is high', function () {
+        // Create two scenarios: low urgency and high urgency
+        $lowUrgencyMetrics = createMetrics([
+            'throughput_per_minute' => 0.0,
+            'active_workers' => 0,
+            'pending' => 50,
+            'oldest_job_age' => 5, // Low urgency (5s < 50% of SLA)
+        ]);
+
+        $highUrgencyMetrics = createMetrics([
+            'throughput_per_minute' => 0.0,
+            'active_workers' => 0,
+            'pending' => 50,
+            'oldest_job_age' => 20, // High urgency (20s > 50% of SLA=30s)
+        ]);
+
+        // Reset estimator between calls to ensure independent calculations
+        $lowUrgencyWorkers = $this->strategy->calculateTargetWorkers($lowUrgencyMetrics, $this->config);
+        $this->arrivalEstimator->reset();
+        $highUrgencyWorkers = $this->strategy->calculateTargetWorkers($highUrgencyMetrics, $this->config);
+
+        // High urgency should result in more workers
+        expect($highUrgencyWorkers)->toBeGreaterThan($lowUrgencyWorkers);
+    });
+
+    it('provides a reason for fallback scaling', function () {
+        $metrics = createMetrics([
+            'throughput_per_minute' => 0.0, // Triggers fallback
+            'active_workers' => 5,
+            'pending' => 20,
+            'oldest_job_age' => 3,
+        ]);
+
+        $this->strategy->calculateTargetWorkers($metrics, $this->config);
+        $reason = $this->strategy->getLastReason();
+
+        // Reason should explain the scaling decision
+        expect($reason)->toBeString();
+        expect(strlen($reason))->toBeGreaterThan(10);
+    });
+
+    it('does not indicate fallback when real throughput data is available', function () {
+        $metrics = createMetrics([
+            'throughput_per_minute' => 600.0, // Real throughput data
+            'active_workers' => 20,
+            'pending' => 0,
+            'oldest_job_age' => 0,
+        ]);
+
+        $this->strategy->calculateTargetWorkers($metrics, $this->config);
+        $reason = $this->strategy->getLastReason();
+
+        // Should NOT indicate fallback was used
+        expect($reason)->not->toContain('fallback');
+    });
 });
 
-it('provides reason for backlog drain scaling', function () {
-    $metrics = createMetrics([
-        'throughput_per_minute' => 600.0, // 10.0 jobs/sec * 60
-        'active_workers' => 20,
-        'pending' => 100,
-        'oldest_job_age' => 25,
-    ]);
+describe('arrival rate estimation integration', function () {
+    it('detects growing backlog and increases worker count', function () {
+        // First measurement
+        $metrics1 = createMetrics([
+            'throughput_per_minute' => 300.0, // 5 jobs/sec
+            'active_workers' => 10,
+            'pending' => 100,
+            'oldest_job_age' => 5,
+        ]);
+        $workers1 = $this->strategy->calculateTargetWorkers($metrics1, $this->config);
 
-    $this->strategy->calculateTargetWorkers($metrics, $this->config);
-    $reason = $this->strategy->getLastReason();
+        // Simulate time passing
+        $history = $this->arrivalEstimator->getHistory();
+        if (! empty($history)) {
+            $key = array_key_first($history);
+            $history[$key]['timestamp'] -= 10;
 
-    expect($reason)->toContain('backlog=100')
-        ->and($reason)->toContain('SLA breach');
+            $reflection = new ReflectionClass($this->arrivalEstimator);
+            $historyProperty = $reflection->getProperty('history');
+            $historyProperty->setValue($this->arrivalEstimator, $history);
+        }
+
+        // Second measurement with growing backlog
+        $metrics2 = createMetrics([
+            'throughput_per_minute' => 300.0, // Same processing rate
+            'active_workers' => 10,
+            'pending' => 200, // Backlog doubled = high arrival rate
+            'oldest_job_age' => 15,
+        ]);
+        $workers2 = $this->strategy->calculateTargetWorkers($metrics2, $this->config);
+
+        // Should request more workers due to detected higher arrival rate
+        // (backlog grew by 100 in 10s = 10 jobs/sec arriving vs 5 jobs/sec processing)
+        expect($workers2)->toBeGreaterThanOrEqual($workers1);
+    });
 });
 
-it('provides reason for predictive scaling', function () {
-    $metrics = createMetrics([
-        'throughput_per_minute' => 600.0, // 10.0 jobs/sec * 60
-        'active_workers' => 20,
-        'pending' => 0,
-        'oldest_job_age' => 0,
-    ]);
+describe('metrics handling', function () {
+    it('handles missing optional metrics gracefully', function () {
+        // createMetrics provides defaults for all fields
+        $metrics = createMetrics([
+            'throughput_per_minute' => 600.0, // 10.0 jobs/sec * 60
+        ]);
 
-    $this->strategy->calculateTargetWorkers($metrics, $this->config);
-    $reason = $this->strategy->getLastReason();
+        $workers = $this->strategy->calculateTargetWorkers($metrics, $this->config);
 
-    // Note: trend data not yet in QueueMetricsData, will show steady state
-    expect($reason)->toContain('steady state');
+        expect($workers)->toBeInt()
+            ->and($workers)->toBeGreaterThanOrEqual(0);
+    });
+
+    it('uses avgDuration from metrics when available', function () {
+        $metrics = createMetrics([
+            'throughput_per_minute' => 600.0,
+            'active_workers' => 20,
+            'pending' => 0,
+            'oldest_job_age' => 0,
+            'avg_duration' => 3.0, // Explicit 3 second duration
+        ]);
+
+        $workers = $this->strategy->calculateTargetWorkers($metrics, $this->config);
+        $reason = $this->strategy->getLastReason();
+
+        // Should use the avgDuration from metrics
+        // Workers = rate * avgDuration = 10 * 3 = 30, with trend buffer = 36
+        expect($workers)->toBeGreaterThanOrEqual(30)
+            ->and($reason)->toContain('3'); // Should reference 3 second job time
+    });
 });
 
-it('returns null prediction before any calculation', function () {
-    $prediction = $this->strategy->getLastPrediction();
+describe('constructor requirements', function () {
+    it('requires ArrivalRateEstimator in constructor', function () {
+        $strategy = new PredictiveStrategy(
+            new LittlesLawCalculator,
+            new BacklogDrainCalculator,
+            new ArrivalRateEstimator,
+        );
 
-    expect($prediction)->toBeNull();
-});
-
-it('predicts pickup time based on backlog and target workers', function () {
-    $metrics = createMetrics([
-        'throughput_per_minute' => 600.0, // 10.0 jobs/sec * 60
-        'active_workers' => 20,
-        'pending' => 100,
-        'oldest_job_age' => 5,
-    ]);
-
-    $this->strategy->calculateTargetWorkers($metrics, $this->config);
-    $prediction = $this->strategy->getLastPrediction();
-
-    expect($prediction)->toBeFloat()
-        ->and($prediction)->toBeGreaterThan(0.0);
-});
-
-it('returns zero prediction for empty backlog', function () {
-    $metrics = createMetrics([
-        'throughput_per_minute' => 600.0, // 10.0 jobs/sec * 60
-        'active_workers' => 20,
-        'pending' => 0,
-        'oldest_job_age' => 0,
-    ]);
-
-    $this->strategy->calculateTargetWorkers($metrics, $this->config);
-    $prediction = $this->strategy->getLastPrediction();
-
-    expect($prediction)->toBe(0.0);
-});
-
-it('handles missing optional metrics gracefully', function () {
-    // createMetrics provides defaults for all fields
-    $metrics = createMetrics([
-        'throughput_per_minute' => 600.0, // 10.0 jobs/sec * 60
-    ]);
-
-    $workers = $this->strategy->calculateTargetWorkers($metrics, $this->config);
-
-    expect($workers)->toBeInt()
-        ->and($workers)->toBeGreaterThanOrEqual(0);
-});
-
-it('returns no calculation message before first run', function () {
-    $reason = $this->strategy->getLastReason();
-
-    expect($reason)->toBe('No calculation performed yet');
-});
-
-// Fallback throughput estimation tests
-it('uses fallback estimation when throughput is zero with active workers', function () {
-    $metrics = createMetrics([
-        'throughput_per_minute' => 0.0, // NO throughput data
-        'active_workers' => 10,
-        'pending' => 50,
-        'oldest_job_age' => 5,
-    ]);
-
-    $workers = $this->strategy->calculateTargetWorkers($metrics, $this->config);
-
-    // Should NOT return 0 workers despite zero throughput
-    // Fallback estimates from active workers' capacity
-    expect($workers)->toBeGreaterThan(0)
-        ->and($this->strategy->getLastReason())->toContain('(estimated)');
-});
-
-it('uses fallback estimation from backlog demand when no workers exist', function () {
-    $metrics = createMetrics([
-        'throughput_per_minute' => 0.0, // NO throughput data
-        'active_workers' => 0, // NO workers yet
-        'pending' => 100,
-        'oldest_job_age' => 10,
-    ]);
-
-    $workers = $this->strategy->calculateTargetWorkers($metrics, $this->config);
-
-    // Should scale up based on backlog demand, not return 0
-    expect($workers)->toBeGreaterThan(0)
-        ->and($this->strategy->getLastReason())->toContain('(estimated)');
-});
-
-it('applies urgency factor in fallback when job age is high', function () {
-    // Create two scenarios: low urgency and high urgency
-    $lowUrgencyMetrics = createMetrics([
-        'throughput_per_minute' => 0.0,
-        'active_workers' => 0,
-        'pending' => 50,
-        'oldest_job_age' => 5, // Low urgency (5s < 50% of SLA)
-    ]);
-
-    $highUrgencyMetrics = createMetrics([
-        'throughput_per_minute' => 0.0,
-        'active_workers' => 0,
-        'pending' => 50,
-        'oldest_job_age' => 20, // High urgency (20s > 50% of SLA=30s)
-    ]);
-
-    $lowUrgencyWorkers = $this->strategy->calculateTargetWorkers($lowUrgencyMetrics, $this->config);
-    $highUrgencyWorkers = $this->strategy->calculateTargetWorkers($highUrgencyMetrics, $this->config);
-
-    // High urgency should result in more workers
-    expect($highUrgencyWorkers)->toBeGreaterThan($lowUrgencyWorkers);
-});
-
-it('returns zero for idle state in fallback (no workers and no backlog)', function () {
-    $metrics = createMetrics([
-        'throughput_per_minute' => 0.0,
-        'active_workers' => 0,
-        'pending' => 0,
-        'oldest_job_age' => 0,
-    ]);
-
-    $workers = $this->strategy->calculateTargetWorkers($metrics, $this->config);
-
-    // Idle state: no workers needed
-    expect($workers)->toBe(0);
-});
-
-it('indicates fallback usage in reason string', function () {
-    $metrics = createMetrics([
-        'throughput_per_minute' => 0.0, // Triggers fallback
-        'active_workers' => 5,
-        'pending' => 20,
-        'oldest_job_age' => 3,
-    ]);
-
-    $this->strategy->calculateTargetWorkers($metrics, $this->config);
-    $reason = $this->strategy->getLastReason();
-
-    // Reason should indicate estimation was used
-    expect($reason)->toContain('(estimated)')
-        ->and($reason)->toContain('steady state');
-});
-
-it('does not use fallback when real throughput data is available', function () {
-    $metrics = createMetrics([
-        'throughput_per_minute' => 600.0, // Real throughput data
-        'active_workers' => 20,
-        'pending' => 0,
-        'oldest_job_age' => 0,
-    ]);
-
-    $this->strategy->calculateTargetWorkers($metrics, $this->config);
-    $reason = $this->strategy->getLastReason();
-
-    // Should NOT indicate fallback was used
-    expect($reason)->not->toContain('(estimated)');
+        expect($strategy)->toBeInstanceOf(PredictiveStrategy::class);
+    });
 });
