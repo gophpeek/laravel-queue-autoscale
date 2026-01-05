@@ -16,7 +16,7 @@ Laravel Queue Autoscale is a smart queue worker manager that automatically scale
 - 🔬 **Queueing Theory Foundation** - Little's Law (L = λW) for steady-state calculations
 - ⚡ **SLA Breach Prevention** - Aggressive backlog drain when approaching SLA violations
 - 🖥️ **Resource-Aware** - Respects CPU and memory limits from system metrics
-- 🔄 **Metrics-Driven** - Uses `laravel-queue-metrics` for queue discovery and all metrics
+- 🔄 **Metrics-Driven** - Uses [`laravel-queue-metrics`](https://github.com/gophpeek/laravel-queue-metrics) for queue discovery and all metrics
 - 🎛️ **Extensible** - Custom scaling strategies and policies via interfaces
 - 📊 **Event Broadcasting** - React to scaling decisions, SLA predictions, worker changes
 - 🛡️ **Graceful Shutdown** - SIGTERM → SIGKILL worker termination
@@ -26,8 +26,8 @@ Laravel Queue Autoscale is a smart queue worker manager that automatically scale
 
 - PHP 8.3+
 - Laravel 11.0+
-- `gophpeek/laravel-queue-metrics` ^1.0.0
-- `gophpeek/system-metrics` ^1.2
+- [`gophpeek/laravel-queue-metrics`](https://github.com/gophpeek/laravel-queue-metrics) ^1.0.0
+- [`gophpeek/system-metrics`](https://github.com/gophpeek/system-metrics) ^1.2
 
 ## Installation
 
@@ -45,7 +45,7 @@ php artisan vendor:publish --tag=queue-autoscale-config
 
 ### Setup Metrics Package
 
-The autoscaler requires `laravel-queue-metrics` for queue discovery and metrics collection:
+The autoscaler requires [`laravel-queue-metrics`](https://github.com/gophpeek/laravel-queue-metrics) for queue discovery and metrics collection:
 
 ```bash
 # Install metrics package (if not auto-installed via dependency)
@@ -113,10 +113,10 @@ php artisan queue:autoscale
 ```
 
 The autoscaler will:
-- Receive all queues and metrics from `laravel-queue-metrics`
+- Receive all queues and metrics from [`laravel-queue-metrics`](https://github.com/gophpeek/laravel-queue-metrics)
 - Apply scaling algorithms to meet SLA targets
 - Scale workers up/down based on calculations
-- Respect CPU/memory limits from `system-metrics`
+- Respect CPU/memory limits from [`system-metrics`](https://github.com/gophpeek/system-metrics)
 - Log all scaling decisions
 
 ### 3. Monitor with Events
@@ -168,7 +168,7 @@ All calculations are bounded by:
 - **Config bounds** - min/max workers from configuration
 - **Cooldown periods** - Prevents scaling thrash
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed algorithm explanation.
+See [Architecture Documentation](docs/algorithms/architecture.md) for detailed algorithm explanation.
 
 ## Configuration Reference
 
@@ -416,7 +416,7 @@ tail -f storage/logs/laravel.log | grep autoscale
 
 ## Metrics Integration
 
-**This package does NOT discover queues or collect metrics itself.** All queue discovery and metrics collection is delegated to `laravel-queue-metrics`:
+**This package does NOT discover queues or collect metrics itself.** All queue discovery and metrics collection is delegated to [`laravel-queue-metrics`](https://github.com/gophpeek/laravel-queue-metrics):
 
 ```php
 use PHPeek\LaravelQueueMetrics\QueueMetrics;
@@ -435,7 +435,7 @@ foreach ($allQueues as $queue) {
 
 **Package Responsibilities:**
 
-### laravel-queue-metrics (dependency)
+### [laravel-queue-metrics](https://github.com/gophpeek/laravel-queue-metrics) (dependency)
 - ✅ Scans all configured queue connections
 - ✅ Discovers active queues
 - ✅ Collects queue depth and age metrics
@@ -482,7 +482,7 @@ Please see [CHANGELOG](CHANGELOG.md) for recent changes.
 
 ## Contributing
 
-Please see [CONTRIBUTING](CONTRIBUTING.md) for details.
+Please see [Contributing Guide](docs/advanced-usage/contributing.md) for details.
 
 ## Security
 
@@ -497,8 +497,8 @@ If you discover any security related issues, please email security@phpeek.com in
 
 ### Documentation
 
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Deep dive into the hybrid predictive algorithm, queueing theory, and system design
-- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues, debugging tips, and solutions
+- **[Architecture](docs/algorithms/architecture.md)** - Deep dive into the hybrid predictive algorithm, queueing theory, and system design
+- **[Troubleshooting](docs/basic-usage/troubleshooting.md)** - Common issues, debugging tips, and solutions
 - **[examples/README.md](examples/README.md)** - Practical examples and templates for custom strategies and policies
 
 ### Examples
