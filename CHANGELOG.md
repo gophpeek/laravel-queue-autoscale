@@ -5,7 +5,7 @@ All notable changes to `laravel-queue-autoscale` will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## v1.0.0 - 2026-01-03
+## v1.0.0 - 2026-01-05
 
 ### Initial Stable Release
 
@@ -19,6 +19,7 @@ First stable release of Laravel Queue Autoscale with intelligent, predictive aut
 - **Predefined Profiles**: Critical, Balanced, Background, High Volume, Bursty
 - **System Resource Awareness**: CPU and memory-based capacity constraints
 - **Configurable Policies**: Scale-down protection, breach notifications
+- **E2E Simulation Suite**: 21 tests validating autoscaler behavior across 12 workload scenarios
 
 #### Platform Support
 
@@ -29,6 +30,12 @@ First stable release of Laravel Queue Autoscale with intelligent, predictive aut
 
 - gophpeek/laravel-queue-metrics ^1.0
 - gophpeek/system-metrics ^1.2
+
+#### Testing
+
+- 277 unit/integration tests
+- 21 simulation tests (steady state, spikes, gradual growth, bursty traffic, etc.)
+- 68% code coverage
 
 ## [Unreleased]
 
