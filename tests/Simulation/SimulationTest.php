@@ -13,7 +13,11 @@ use PHPeek\LaravelQueueAutoscale\Tests\Simulation\WorkloadSimulator;
  * These tests simulate real-world workload patterns and verify
  * the autoscaler responds correctly. They provide confidence
  * that the scaling algorithms work in realistic scenarios.
+ *
+ * Run locally with: vendor/bin/pest tests/Simulation
+ * Excluded from CI due to execution time (~18 minutes).
  */
+uses()->group('simulation');
 describe('Steady State', function () {
     it('maintains stable worker count under constant load', function () {
         $simulation = new ScalingSimulation(
