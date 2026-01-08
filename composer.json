@@ -11,7 +11,7 @@
         "sla",
         "slo",
         "predictive",
-        "little's law"
+        "littles-law"
     ],
     "homepage": "https://github.com/gophpeek/laravel-queue-autoscale",
     "license": "MIT",
