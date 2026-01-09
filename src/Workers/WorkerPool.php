@@ -92,6 +92,16 @@ final class WorkerPool
         )->values()->all();
     }
 
+    /**
+     * Find a worker by PID
+     */
+    public function findByPid(int $pid): ?WorkerProcess
+    {
+        return $this->workers->first(
+            fn (WorkerProcess $w) => $w->pid() === $pid
+        );
+    }
+
     public function reset(): void
     {
         $this->workers = collect();
