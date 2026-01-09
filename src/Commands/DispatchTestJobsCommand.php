@@ -23,13 +23,27 @@ class DispatchTestJobsCommand extends Command
 
     public function handle(): int
     {
-        $count = (int) $this->argument('count');
-        $queue = (string) $this->option('queue');
-        $connection = $this->option('connection');
-        $durationMs = (int) $this->option('duration');
-        $delay = (int) $this->option('delay');
-        $spread = (int) $this->option('spread');
-        $failRate = min(100, max(0, (int) $this->option('fail-rate')));
+        $countArg = $this->argument('count');
+        $count = is_numeric($countArg) ? (int) $countArg : 10;
+
+        $queueOpt = $this->option('queue');
+        $queue = is_string($queueOpt) ? $queueOpt : 'default';
+
+        $connectionOpt = $this->option('connection');
+        $connection = is_string($connectionOpt) ? $connectionOpt : null;
+
+        $durationOpt = $this->option('duration');
+        $durationMs = is_numeric($durationOpt) ? (int) $durationOpt : 100;
+
+        $delayOpt = $this->option('delay');
+        $delay = is_numeric($delayOpt) ? (int) $delayOpt : 0;
+
+        $spreadOpt = $this->option('spread');
+        $spread = is_numeric($spreadOpt) ? (int) $spreadOpt : 0;
+
+        $failRateOpt = $this->option('fail-rate');
+        $failRate = min(100, max(0, is_numeric($failRateOpt) ? (int) $failRateOpt : 0));
+
         $burst = (bool) $this->option('burst');
 
         $this->info("Dispatching {$count} test jobs to queue '{$queue}'");

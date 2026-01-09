@@ -18,8 +18,11 @@ class DebugQueueCommand extends Command
 
     public function handle(): int
     {
-        $queue = (string) $this->option('queue');
-        $connection = (string) $this->option('connection');
+        $queueOpt = $this->option('queue');
+        $queue = is_string($queueOpt) ? $queueOpt : 'default';
+
+        $connectionOpt = $this->option('connection');
+        $connection = is_string($connectionOpt) ? $connectionOpt : 'database';
 
         $this->info("Debugging queue: {$connection}:{$queue}");
         $this->line('');
