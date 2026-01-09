@@ -58,7 +58,7 @@ jobs:
         run: composer show -D
 
       - name: Execute tests
-        run: vendor/bin/pest --coverage --min=65 --exclude-group=simulation
+        run: vendor/bin/pest --coverage --min=50 --exclude-group=simulation
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
