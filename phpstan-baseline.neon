@@ -15,7 +15,7 @@ parameters:
 		-
 			message: '#^Cannot cast mixed to string\.$#'
 			identifier: cast.string
-			count: 4
+			count: 5
 			path: src/Configuration/AutoscaleConfiguration.php
 
 		-
@@ -73,14 +73,20 @@ parameters:
 			path: src/Configuration/QueueConfiguration.php
 
 		-
-			message: '#^Binary operation "/" between mixed and 1000\.0 results in an error\.$#'
-			identifier: binaryOp.invalid
-			count: 1
+			message: '#^Cannot cast mixed to float\.$#'
+			identifier: cast.double
+			count: 4
 			path: src/Manager/AutoscaleManager.php
 
 		-
 			message: '#^Cannot cast mixed to int\.$#'
 			identifier: cast.int
+			count: 6
+			path: src/Manager/AutoscaleManager.php
+
+		-
+			message: '#^Cannot cast mixed to string\.$#'
+			identifier: cast.string
 			count: 1
 			path: src/Manager/AutoscaleManager.php
 
