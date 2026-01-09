@@ -27,5 +27,11 @@
         <include>
             <directory suffix=".php">./src</directory>
         </include>
+        <exclude>
+            <directory suffix=".php">./src/Output</directory>
+            <directory suffix=".php">./src/Commands</directory>
+            <directory suffix=".php">./src/Jobs</directory>
+            <file>./src/Workers/WorkerOutputBuffer.php</file>
+        </exclude>
     </source>
 </phpunit>

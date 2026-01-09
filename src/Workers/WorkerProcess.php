@@ -40,4 +40,14 @@ final class WorkerProcess
     {
         return $this->connection === $connection && $this->queue === $queue;
     }
+
+    public function getIncrementalOutput(): string
+    {
+        return $this->process->getIncrementalOutput();
+    }
+
+    public function getIncrementalErrorOutput(): string
+    {
+        return $this->process->getIncrementalErrorOutput();
+    }
 }

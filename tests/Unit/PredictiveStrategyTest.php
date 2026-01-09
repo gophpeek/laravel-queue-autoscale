@@ -376,6 +376,40 @@ describe('fallback arrival rate estimation', function () {
         // Should NOT indicate fallback was used
         expect($reason)->not->toContain('fallback');
     });
+
+    it('does not estimate arrival rate from worker capacity when queue is idle', function () {
+        // BUG FIX: Previously, having workers would cause high arrival rate estimation
+        // even when the queue was essentially empty
+        $metrics = createMetrics([
+            'throughput_per_minute' => 0.0, // No throughput (idle)
+            'active_workers' => 5, // Workers exist but idle
+            'pending' => 1, // Tiny backlog (< 3)
+            'oldest_job_age' => 0,
+        ]);
+
+        $workers = $this->strategy->calculateTargetWorkers($metrics, $this->config);
+
+        // Should NOT scale up based on worker capacity alone
+        // With 1 pending job and no throughput, we don't need many workers
+        expect($workers)->toBeLessThanOrEqual(1);
+    });
+
+    it('does not inflate arrival rate when workers exist but no jobs arriving', function () {
+        // BUG FIX: Having 5 workers with 0.15s avg job time was causing:
+        // workerCapacity = 5 / 0.15 = 33.3 jobs/s
+        // arrivalRate = 33.3 * 0.7 = 23.3 jobs/s  <- WRONG!
+        $metrics = createMetrics([
+            'throughput_per_minute' => 0.0, // No jobs being processed
+            'active_workers' => 5, // 5 idle workers
+            'pending' => 0, // Empty queue
+            'oldest_job_age' => 0,
+        ]);
+
+        $workers = $this->strategy->calculateTargetWorkers($metrics, $this->config);
+
+        // With empty queue and no throughput, should return 0 workers
+        expect($workers)->toBe(0);
+    });
 });
 
 describe('arrival rate estimation integration', function () {
