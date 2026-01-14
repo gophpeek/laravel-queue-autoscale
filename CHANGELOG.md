@@ -5,6 +5,58 @@ All notable changes to `laravel-queue-autoscale` will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v1.1.0 - TUI Mode & Critical Bug Fix - 2026-01-14
+
+### What's Changed
+
+#### Bug Fixes
+
+- **Critical**: Fix avgDuration unit handling - removed incorrect `* 1000` multiplication that caused 1000x error in job duration calculations, leading to incorrect scaling decisions
+- Add try-catch error handling to prevent one malformed queue from crashing the entire scaling loop
+- Add null-safe operator for renderer to satisfy PHPStan
+
+#### New Features
+
+- **TUI Mode**: Add `--interactive` / `--tui` flags for k9s-style terminal UI
+  - Split pane layout with queue overview, workers, and logs
+  - Real-time metrics updates at 60 FPS
+  - Keyboard navigation and filtering
+  - Tab-based navigation (Overview, Queues, Workers, Jobs, Metrics, Logs)
+  
+- **Debug Command**: Add `queue:autoscale:debug` for queue state inspection
+- **Test Command**: Add `queue:autoscale:test` for dispatching test jobs
+
+#### Architecture Improvements
+
+- Add OutputRendererContract with multiple implementations (Default, Verbose, Quiet, TUI)
+- Add WorkerOutputBuffer for capturing worker process output
+- Add configuredQueues() method to AutoscaleConfiguration
+
+### Upgrade Notes
+
+This release includes a **critical bug fix** for the avgDuration calculation. If you experienced incorrect scaling behavior, upgrading to v1.1.0 should resolve the issue.
+
+The TUI mode requires `php-tui/php-tui` which is included as a suggested dependency. Install it if you want to use the interactive mode:
+
+```bash
+composer require php-tui/php-tui --dev
+
+```
+### Usage
+
+```bash
+# Run with TUI mode
+php artisan queue:autoscale --tui
+
+# Debug queue state
+php artisan queue:autoscale:debug
+
+# Dispatch test jobs
+php artisan queue:autoscale:test --jobs=10 --queue=default
+
+```
+**Full Changelog**: https://github.com/gophpeek/laravel-queue-autoscale/compare/v1.0.0...v1.1.0
+
 ## v1.0.0 - Initial Stable Release - 2026-01-05
 
 ### Laravel Queue Autoscale v1.0.0
@@ -30,6 +82,7 @@ First stable release of Laravel Queue Autoscale with intelligent, predictive aut
 
 ```bash
 composer require gophpeek/laravel-queue-autoscale
+
 
 ```
 #### Testing
