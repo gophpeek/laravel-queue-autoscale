@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace PHPeek\LaravelQueueAutoscale;
 
 use Illuminate\Support\ServiceProvider;
+use PHPeek\LaravelQueueAutoscale\Commands\DebugQueueCommand;
+use PHPeek\LaravelQueueAutoscale\Commands\DispatchTestJobsCommand;
 use PHPeek\LaravelQueueAutoscale\Commands\LaravelQueueAutoscaleCommand;
 use PHPeek\LaravelQueueAutoscale\Configuration\AutoscaleConfiguration;
 use PHPeek\LaravelQueueAutoscale\Contracts\ScalingStrategyContract;
@@ -67,6 +69,8 @@ class LaravelQueueAutoscaleServiceProvider extends ServiceProvider
 
             $this->commands([
                 LaravelQueueAutoscaleCommand::class,
+                DispatchTestJobsCommand::class,
+                DebugQueueCommand::class,
             ]);
         }
     }

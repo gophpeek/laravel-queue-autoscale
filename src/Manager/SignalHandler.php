@@ -32,4 +32,12 @@ final class SignalHandler
     {
         pcntl_signal_dispatch();
     }
+
+    /**
+     * Programmatically request a stop (e.g., from TUI quit)
+     */
+    public function requestStop(): void
+    {
+        $this->shouldStop = true;
+    }
 }

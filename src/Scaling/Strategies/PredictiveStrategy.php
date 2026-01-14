@@ -277,13 +277,11 @@ final class PredictiveStrategy implements ScalingStrategyContract
     /**
      * Estimate arrival rate when no data is available
      *
-     * Uses multiple indicators to make intelligent estimates:
-     * 1. Active workers' capacity (if workers exist, they're processing)
-     * 2. Backlog demand (if backlog exists, we need workers)
-     * 3. Urgency from oldest job age (how fast we need to process)
+     * Only estimates when there's actual evidence of incoming work (significant backlog).
+     * Does NOT estimate from worker capacity - having workers doesn't mean jobs are arriving.
      *
      * @param  int  $backlogSize  Number of pending jobs
-     * @param  int  $activeWorkers  Current active workers
+     * @param  int  $activeWorkers  Current active workers (unused - kept for signature)
      * @param  int  $oldestJobAge  Age of oldest job in seconds
      * @param  float  $avgJobTime  Average processing time per job
      * @param  int  $slaTarget  Max pickup time SLA in seconds
@@ -296,28 +294,33 @@ final class PredictiveStrategy implements ScalingStrategyContract
         float $avgJobTime,
         int $slaTarget,
     ): float {
-        // Strategy 1: Estimate from active workers' capacity
-        if ($activeWorkers > 0 && $avgJobTime > 0) {
-            $workerCapacity = $activeWorkers / $avgJobTime;
-
-            // Conservative: assume 70% utilization
-            return $workerCapacity * 0.7;
+        // Only estimate if there's a significant backlog (more than a few jobs)
+        // Small backlogs (0-2 jobs) don't indicate meaningful arrival rate
+        if ($backlogSize < 3) {
+            return 0.0;
         }
 
-        // Strategy 2: Estimate from backlog demand
-        if ($backlogSize > 0 && $slaTarget > 0) {
+        // Estimate from backlog demand - how fast do we need to process?
+        if ($slaTarget > 0) {
             if ($oldestJobAge > 0) {
+                // Calculate urgency based on how close we are to SLA breach
                 $urgencyFactor = min($oldestJobAge / max($slaTarget * 0.5, 1), 2.0);
                 $baseRate = $backlogSize / max($slaTarget, 1);
 
                 return $baseRate * $urgencyFactor;
             }
 
-            // No age data: process backlog within half SLA time
-            return $backlogSize / max($slaTarget / 2, 1);
+            // No age data: estimate conservatively
+            return $backlogSize / max($slaTarget, 1);
         }
 
-        // Idle state
+        // Last resort: estimate based on backlog and job time
+        if ($avgJobTime > 0) {
+            // How many jobs per second would clear this backlog in 60 seconds?
+            return $backlogSize / 60.0;
+        }
+
+        // Truly idle state - no arrivals
         return 0.0;
     }
 }

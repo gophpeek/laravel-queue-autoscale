@@ -129,6 +129,31 @@ final readonly class AutoscaleConfiguration
         return (array) config('queue-autoscale.policies', []);
     }
 
+    /**
+     * Get all configured queues from the autoscale configuration.
+     *
+     * @return array<string, array{connection: string, queue: string}>
+     */
+    public static function configuredQueues(): array
+    {
+        /** @var array<string, array<string, mixed>> $queuesConfig */
+        $queuesConfig = config('queue-autoscale.queues', []);
+        $result = [];
+
+        foreach ($queuesConfig as $queueName => $config) {
+            $connection = isset($config['connection'])
+                ? (string) $config['connection']
+                : 'default';
+
+            $result["{$connection}:{$queueName}"] = [
+                'connection' => $connection,
+                'queue' => $queueName,
+            ];
+        }
+
+        return $result;
+    }
+
     public static function trendScalingPolicy(): TrendScalingPolicy
     {
         $policy = (string) self::scalingConfig('trend_policy', 'moderate');
